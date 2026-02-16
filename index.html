@@ -155,12 +155,24 @@
         </div>
     </div>
 
+    <div id="edit-game-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 text-white">
+        <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-6 text-center uppercase italic">Sonucu Düzelt</h3>
+            <div id="edit-info" class="text-center mb-6 text-zinc-400 text-sm"></div>
+            <div class="flex gap-4">
+                <button id="edit-win-red" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZI</button>
+                <button id="edit-win-blue" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİ</button>
+            </div>
+            <button onclick="document.getElementById('edit-game-modal').classList.add('hidden')" class="mt-6 w-full text-zinc-500">Vazgeç</button>
+        </div>
+    </div>
+
     <script>
         const PLAYERS_KEY = 'survivor_players';
         const GAMES_KEY = 'survivor_games';
         let players = []; let games = []; let currentGame = null;
         let expanded = { daily: false, general: false, red: false, blue: false };
-        let openArchives = {}; // Hangi günlerin açık olduğunu tutar
+        let openArchives = {}; 
 
         function init() {
             const storedPlayers = localStorage.getItem(PLAYERS_KEY);
@@ -175,7 +187,6 @@
             }
             games = JSON.parse(localStorage.getItem(GAMES_KEY)) || [];
             
-            // Başlangıçta en son günü açık göster
             const lastDate = [...new Set(games.map(g => g.date))].sort((a,b) => b.localeCompare(a))[0];
             if(lastDate) openArchives[lastDate] = true;
 
@@ -219,7 +230,6 @@
                 const itemDiv = document.createElement('div');
                 itemDiv.className = `archive-item border border-zinc-800 rounded-2xl overflow-hidden bg-zinc-900/20 ${isOpen ? 'active' : ''}`;
                 
-                // Header (Tıklanabilir Alan)
                 itemDiv.innerHTML = `
                     <div onclick="toggleArchive('${date}')" class="archive-header flex items-center justify-between p-4 cursor-pointer hover:bg-zinc-800/50 transition-all">
                         <div class="flex items-center gap-3">
@@ -244,9 +254,14 @@
                                     <div class="bg-zinc-800/30 border border-zinc-800/50 p-3 rounded-xl relative group">
                                         <div class="flex justify-between text-[8px] text-zinc-600 mb-2 font-bold uppercase">
                                             <span>${game.time}</span>
-                                            <button onclick="deleteGame('${game.id}')" class="text-zinc-700 hover:text-red-500 transition-colors">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
+                                            <div class="flex gap-3">
+                                                <button onclick="editGame('${game.id}')" class="text-zinc-700 hover:text-yellow-500 transition-colors">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button onclick="deleteGame('${game.id}')" class="text-zinc-700 hover:text-red-500 transition-colors">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="flex items-center gap-3">
                                             <div class="flex-1 text-right text-xs font-bold ${game.winnerId === game.redId ? 'text-red-400' : 'text-zinc-600'}">${game.redName}</div>
@@ -259,18 +274,35 @@
                                     </div>
                                 `;
                             }).join('')}
-                            
-                            <div class="mt-4 p-3 bg-zinc-800/10 border-t border-zinc-800 border-dashed text-center">
-                                <span class="text-[9px] font-black text-zinc-500 uppercase tracking-tighter">Günün Galibi: </span>
-                                <span class="text-[9px] font-black uppercase ${rW > bW ? 'text-red-500' : (bW > rW ? 'text-blue-500' : 'text-zinc-400')}">
-                                    ${rW > bW ? 'Kırmızı Takım' : (bW > rW ? 'Mavi Takım' : 'Berabere')}
-                                </span>
-                            </div>
                         </div>
                     </div>
                 `;
                 container.appendChild(itemDiv);
             });
+        }
+
+        // DÜZENLEME MANTIĞI (YENİ)
+        function editGame(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if(!game) return;
+            const modal = document.getElementById('edit-game-modal');
+            const info = document.getElementById('edit-info');
+            info.textContent = `${game.redName} vs ${game.blueName}`;
+            
+            document.getElementById('edit-win-red').onclick = () => updateGameResult(gameId, game.redId);
+            document.getElementById('edit-win-blue').onclick = () => updateGameResult(gameId, game.blueId);
+            
+            modal.classList.remove('hidden');
+        }
+
+        function updateGameResult(gameId, newWinnerId) {
+            const idx = games.findIndex(g => g.id === gameId);
+            if(idx !== -1) {
+                games[idx].winnerId = newWinnerId;
+                localStorage.setItem(GAMES_KEY, JSON.stringify(games));
+                document.getElementById('edit-game-modal').classList.add('hidden');
+                renderAll();
+            }
         }
 
         // --- DİĞER FONKSİYONLAR ---
@@ -352,8 +384,6 @@
             const wId = winnerTeam === 'red' ? currentGame.redId : currentGame.blueId;
             games.push({ ...currentGame, id: Date.now().toString(), winnerId: wId });
             localStorage.setItem(GAMES_KEY, JSON.stringify(games)); 
-            
-            // Yeni maçı eklediğimizde o günün akordeonunu otomatik aç
             openArchives[currentGame.date] = true;
 
             document.getElementById('active-game').classList.add('win-flash');
