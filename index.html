@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Survivor Arena</title>
+    <title>Survivor Arena - Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <style>
@@ -41,7 +41,7 @@
                 <div class="bg-zinc-800 rounded-3xl p-6 border border-zinc-700/50 text-center">
                     <div class="flex items-center justify-center gap-2 mb-6">
                         <div class="w-8 h-8 bg-red-500 rounded-full shadow-[0_0_15px_rgba(239,68,68,0.4)]"></div>
-                        <h2 class="text-2xl font-bold text-red-400 font-sans italic tracking-tighter uppercase">Kırmızı</h2>
+                        <h2 class="text-2xl font-bold text-red-400 italic tracking-tighter uppercase">Kırmızı</h2>
                     </div>
                     <div id="red-players-top" class="space-y-2"></div>
                     <div id="red-extra" class="extra-content max-h-0 space-y-2 mt-2"></div>
@@ -51,7 +51,7 @@
                 <div class="bg-zinc-800 rounded-3xl p-6 border border-zinc-700/50 text-center">
                     <div class="flex items-center justify-center gap-2 mb-6">
                         <div class="w-8 h-8 bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.4)]"></div>
-                        <h2 class="text-2xl font-bold text-blue-400 font-sans italic tracking-tighter uppercase">Mavi</h2>
+                        <h2 class="text-2xl font-bold text-blue-400 italic tracking-tighter uppercase">Mavi</h2>
                     </div>
                     <div id="blue-players-top" class="space-y-2"></div>
                     <div id="blue-extra" class="extra-content max-h-0 space-y-2 mt-2"></div>
@@ -61,24 +61,28 @@
 
             <div class="md:col-span-2 lg:col-span-6 order-1 lg:order-2 space-y-6">
                 <div class="bg-zinc-800 rounded-3xl p-6 border border-zinc-700/50 flex flex-col min-h-[500px]">
-                    <button onclick="startNewGameModal()" class="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-xl font-bold py-5 rounded-2xl mb-8 flex items-center justify-center gap-3 shadow-lg transform active:scale-95 transition-all">
+                    <button id="btn-new-game" onclick="startNewGameModal()" class="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-xl font-bold py-5 rounded-2xl mb-8 flex items-center justify-center gap-3 shadow-lg transform active:scale-95 transition-all">
                         <i class="fas fa-play"></i> YENİ OYUN BAŞLAT
                     </button>
 
-                    <div id="active-game" class="hidden bg-zinc-900 border border-zinc-700 rounded-2xl p-6 mb-8">
-                        <div class="grid grid-cols-2 gap-6 items-center">
+                    <div id="active-game" class="hidden bg-zinc-900 border-2 border-orange-500/50 rounded-2xl p-6 mb-8 relative">
+                        <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-[10px] px-3 py-1 rounded-full font-black uppercase">Canlı Maç</div>
+                        <div class="grid grid-cols-2 gap-6 items-center mt-2">
                             <div id="red-fighter" class="text-center p-4 bg-red-500/10 rounded-xl border border-red-500/20"></div>
                             <div id="blue-fighter" class="text-center p-4 bg-blue-500/10 rounded-xl border border-blue-500/20"></div>
                         </div>
-                        <div class="flex gap-4 mt-8">
-                            <button onclick="selectWinner('red')" class="flex-1 bg-red-600 hover:bg-red-700 py-4 rounded-2xl text-lg font-bold shadow-lg italic">KIRMIZI</button>
-                            <button onclick="selectWinner('blue')" class="flex-1 bg-blue-600 hover:bg-blue-700 py-4 rounded-2xl text-lg font-bold shadow-lg italic">MAVİ</button>
+                        <div class="flex flex-col gap-3 mt-8">
+                            <div class="flex gap-4">
+                                <button onclick="selectWinner('red')" class="flex-1 bg-red-600 hover:bg-red-700 py-4 rounded-2xl text-lg font-bold shadow-lg italic">KIRMIZI KAZANDI</button>
+                                <button onclick="selectWinner('blue')" class="flex-1 bg-blue-600 hover:bg-blue-700 py-4 rounded-2xl text-lg font-bold shadow-lg italic">MAVİ KAZANDI</button>
+                            </div>
+                            <button onclick="cancelActiveGame()" class="text-zinc-500 hover:text-white text-xs font-bold uppercase py-2">Maçı İptal Et</button>
                         </div>
                     </div>
 
                     <div class="flex-1">
                         <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <i class="fas fa-history text-zinc-400"></i> ARŞİV
+                            <i class="fas fa-history text-zinc-400"></i> MAÇ GEÇMİŞİ
                         </h3>
                         <div id="game-archive" class="space-y-4"></div>
                     </div>
@@ -92,7 +96,7 @@
                     </h2>
                     <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
                         <div class="flex-1">OYUNCU</div>
-                        <div class="w-7 text-center">M</div><div class="w-7 text-center">P</div><div class="w-7 text-center">K</div>
+                        <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div>
                     </div>
                     <div id="daily-scoreboard-top" class="space-y-2"></div>
                     <div id="daily-extra" class="extra-content max-h-0 space-y-2 mt-0"></div>
@@ -105,36 +109,42 @@
                     </h2>
                     <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
                         <div class="flex-1">OYUNCU</div>
-                        <div class="w-7 text-center">M</div><div class="w-7 text-center">P</div><div class="w-7 text-center">K</div>
+                        <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div>
                     </div>
                     <div id="general-scoreboard-top" class="space-y-2"></div>
                     <div id="general-extra" class="extra-content max-h-0 space-y-2 mt-0"></div>
                     <button id="btn-general" onclick="toggleSection('general')" class="hidden w-full mt-3 py-2 bg-zinc-700/30 rounded-xl text-[10px] font-bold text-zinc-400 hover:text-white transition-all">DAHA FAZLA</button>
                 </div>
             </div>
-
         </div>
     </div>
 
     <div id="add-player-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
         <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-md text-white">
-            <h3 class="text-2xl font-bold mb-6 italic">YENİ OYUNCU</h3>
+            <h3 class="text-2xl font-bold mb-6 italic">YENİ OYUNCU EKLE</h3>
             <input id="player-name" type="text" placeholder="İsim Soyisim" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-6 py-4 text-lg mb-4 outline-none focus:ring-2 focus:ring-emerald-500">
             <div class="flex gap-4">
-                <button onclick="addPlayer('red')" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZI</button>
-                <button onclick="addPlayer('blue')" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİ</button>
+                <button onclick="addPlayer('red')" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button>
+                <button onclick="addPlayer('blue')" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>
             </div>
-            <button onclick="closeModal()" class="mt-6 w-full text-zinc-500">İptal</button>
+            <button onclick="closeModal()" class="mt-6 w-full text-zinc-500">Vazgeç</button>
         </div>
     </div>
 
     <div id="new-game-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 text-white">
         <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-lg">
-            <h3 class="text-2xl font-bold mb-6 italic text-orange-500">MAÇ SEÇİMİ</h3>
-            <div class="mb-4 text-red-400 font-bold">KIRMIZI: <select id="red-select" class="w-full bg-zinc-800 p-4 rounded-xl mt-1 outline-none"></select></div>
-            <div class="mb-6 text-blue-400 font-bold">MAVİ: <select id="blue-select" class="w-full bg-zinc-800 p-4 rounded-xl mt-1 outline-none"></select></div>
-            <div class="flex gap-4">
-                <button onclick="startGameFromModal()" class="flex-1 bg-orange-600 py-4 rounded-2xl font-bold italic">BAŞLAT</button>
+            <h3 class="text-2xl font-bold mb-6 italic text-orange-500 text-center uppercase">Düello Seçimi</h3>
+            <div class="space-y-4">
+                <div class="text-red-400 font-bold">KIRMIZI TAKIM: 
+                    <select id="red-select" class="w-full bg-zinc-800 p-4 rounded-xl mt-2 outline-none border border-zinc-700"></select>
+                </div>
+                <div class="text-center font-black text-zinc-600">VS</div>
+                <div class="text-blue-400 font-bold">MAVİ TAKIM: 
+                    <select id="blue-select" class="w-full bg-zinc-800 p-4 rounded-xl mt-2 outline-none border border-zinc-700"></select>
+                </div>
+            </div>
+            <div class="flex gap-4 mt-8">
+                <button onclick="startGameFromModal()" class="flex-1 bg-orange-600 py-4 rounded-2xl font-bold italic text-lg shadow-lg">MÜSABAKAYI BAŞLAT</button>
                 <button onclick="closeNewGameModal()" class="flex-1 bg-zinc-700 py-4 rounded-2xl font-bold">İptal</button>
             </div>
         </div>
@@ -153,34 +163,20 @@
             } else {
                 const defaultRed = ["Bayhan Gürhan", "Deniz Çatalbaş", "Mert Nobre", "Murat Arkın", "Seren Ay", "Serhan Onat", "Can Berkay", "Seda Albayrak", "Sercan Yıldırım", "Nefise Karatay", "Büşra Yalçın"];
                 const defaultBlue = ["Beyza Gemici", "Engincan Tura", "Eren Semerci", "Gözde Bozkurt", "Lina Hourieh", "Nisanur Güler", "Onur Alp Çam", "Ramazan Sarı", "Sude Demir", "Osman Can", "Nagihan Karadere"];
-                
-                defaultRed.forEach(name => players.push({ id: 'r-' + Math.random().toString(36).substr(2, 9), name, team: 'red', matches: 0, points: 0 }));
-                defaultBlue.forEach(name => players.push({ id: 'b-' + Math.random().toString(36).substr(2, 9), name, team: 'blue', matches: 0, points: 0 }));
-                
+                defaultRed.forEach(name => players.push({ id: 'r-' + Math.random().toString(36).substr(2, 9), name, team: 'red'}));
+                defaultBlue.forEach(name => players.push({ id: 'b-' + Math.random().toString(36).substr(2, 9), name, team: 'blue'}));
                 localStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
             }
             games = JSON.parse(localStorage.getItem(GAMES_KEY)) || [];
             renderAll();
         }
 
+        // --- TEMEL RENDER FONKSİYONLARI ---
         function renderAll() {
             renderTeam('red'); renderTeam('blue');
             renderArchive();
             renderScoreboard('daily');
             renderScoreboard('general');
-        }
-
-        function toggleSection(type) {
-            expanded[type] = !expanded[type];
-            const extra = document.getElementById(type + '-extra');
-            const btn = document.getElementById('btn-' + type);
-            if (expanded[type]) {
-                extra.style.maxHeight = extra.scrollHeight + "px";
-                btn.textContent = "DAHA AZ";
-            } else {
-                extra.style.maxHeight = "0";
-                btn.textContent = "DAHA FAZLA";
-            }
         }
 
         function renderTeam(team) {
@@ -192,7 +188,7 @@
             teamPlayers.forEach((player, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center justify-between bg-zinc-900/50 border border-zinc-700/30 p-3 rounded-xl`;
-                div.innerHTML = `<div class="font-bold text-sm truncate">${player.name}</div><button onclick="removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500"><i class="fas fa-times text-xs"></i></button>`;
+                div.innerHTML = `<div class="font-bold text-sm truncate">${player.name}</div><button onclick="removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button>`;
                 if (i < 7) topC.appendChild(div); else extraC.appendChild(div);
             });
             if (teamPlayers.length > 7) btn.classList.remove('hidden'); else btn.classList.add('hidden');
@@ -203,9 +199,12 @@
             const extraC = document.getElementById(type + '-extra');
             const btn = document.getElementById('btn-' + type);
             topC.innerHTML = ''; extraC.innerHTML = '';
+            
+            // İstatistikleri maç geçmişinden dinamik hesaplıyoruz (SİLİNENLER OTOMATİK DÜŞER)
             let stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0 }));
             const today = new Date().toLocaleDateString('tr-TR');
             const relevantGames = (type === 'daily') ? games.filter(g => g.date === today) : games;
+            
             relevantGames.forEach(g => {
                 const winner = stats.find(s => s.id === g.winnerId);
                 const loserId = (g.winnerId === g.redId) ? g.blueId : g.redId;
@@ -213,6 +212,7 @@
                 if(winner) { winner.m++; winner.w++; }
                 if(loser) { loser.m++; loser.l++; }
             });
+
             const sorted = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || b.m - a.m);
             sorted.forEach((p, i) => {
                 const div = document.createElement('div');
@@ -229,129 +229,146 @@
             const grouped = {};
             games.forEach(game => { if (!grouped[game.date]) grouped[game.date] = []; grouped[game.date].push(game); });
             const sortedDates = Object.keys(grouped).sort((a, b) => b.split('.').reverse().join('-').localeCompare(a.split('.').reverse().join('-')));
+            
             sortedDates.forEach(date => {
                 const dayGames = grouped[date];
                 let rW = 0, bW = 0;
                 dayGames.forEach(g => {
-                    const p = players.find(x => x.id === g.winnerId);
-                    if(p) (p.team === 'red') ? rW++ : bW++;
+                    const winnerP = players.find(x => x.id === g.winnerId);
+                    if(winnerP) (winnerP.team === 'red') ? rW++ : bW++;
                 });
+
                 const dayHeader = document.createElement('div');
                 dayHeader.className = 'flex items-center gap-4 my-8';
-                dayHeader.innerHTML = `<div class="flex-1 h-px bg-zinc-700"></div><div class="text-[10px] font-black px-4 uppercase">${date}</div><div class="flex-1 h-px bg-zinc-700"></div>`;
+                dayHeader.innerHTML = `<div class="flex-1 h-px bg-zinc-700"></div><div class="text-[10px] font-black px-4 uppercase text-zinc-500">${date}</div><div class="flex-1 h-px bg-zinc-700"></div>`;
                 container.appendChild(dayHeader);
+
                 [...dayGames].reverse().forEach(game => {
                     const winner = players.find(p => p.id === game.winnerId) || {name: 'Silinmiş'};
                     const div = document.createElement('div');
-                    div.className = 'bg-zinc-900/40 border border-zinc-800 p-4 rounded-2xl mb-3';
-                    div.innerHTML = `<div class="flex justify-between text-[9px] text-zinc-500 mb-2"><span>${game.time}</span><span>TAMAMLANDI</span></div><div class="flex items-center gap-4"><div class="flex-1 text-right text-sm font-bold text-red-400">${game.redName}</div><div class="text-xs text-zinc-700 font-black">VS</div><div class="flex-1 text-left text-sm font-bold text-blue-400">${game.blueName}</div></div><div class="text-center text-[10px] font-bold text-emerald-400 mt-2 uppercase italic">👑 ${winner.name}</div>`;
+                    div.className = 'group bg-zinc-900/40 border border-zinc-800 p-4 rounded-2xl mb-3 relative overflow-hidden';
+                    div.innerHTML = `
+                        <div class="flex justify-between text-[9px] text-zinc-500 mb-2">
+                            <span>${game.time}</span>
+                            <button onclick="deleteGame('${game.id}')" class="text-zinc-600 hover:text-red-500 font-bold flex items-center gap-1 transition-all">
+                                <i class="fas fa-trash-alt"></i> SİL
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex-1 text-right text-sm font-bold ${game.winnerId === game.redId ? 'text-red-400' : 'text-zinc-600'}">${game.redName}</div>
+                            <div class="text-[10px] text-zinc-700 font-black">VS</div>
+                            <div class="flex-1 text-left text-sm font-bold ${game.winnerId === game.blueId ? 'text-blue-400' : 'text-zinc-600'}">${game.blueName}</div>
+                        </div>
+                        <div class="text-center text-[10px] font-bold text-emerald-400 mt-2 uppercase italic tracking-widest">
+                            <i class="fas fa-crown text-[8px]"></i> ${winner.name}
+                        </div>
+                    `;
                     container.appendChild(div);
                 });
+
                 const dayWinner = rW > bW ? 'KIRMIZI' : (bW > rW ? 'MAVİ' : 'BERABERE');
                 const winCol = rW > bW ? 'text-red-500' : (bW > rW ? 'text-blue-500' : 'text-zinc-500');
                 const summary = document.createElement('div');
                 summary.className = 'bg-zinc-800/80 border-2 border-dashed border-zinc-700 p-4 rounded-3xl mb-12 text-center';
-                summary.innerHTML = `<div class="flex justify-around items-center mb-2"><div class="text-2xl font-black text-red-500">${rW}</div><div class="text-2xl font-black text-blue-500">${bW}</div></div><div class="text-[10px] font-black uppercase tracking-tighter"><span class="text-zinc-500">GÜNÜN ŞAMPİYONU: </span><span class="${winCol}">${dayWinner}</span></div>`;
+                summary.innerHTML = `<div class="flex justify-around items-center mb-2"><div class="text-2xl font-black text-red-500">${rW}</div><div class="text-2xl font-black text-blue-500">${bW}</div></div><div class="text-[10px] font-black uppercase"><span class="text-zinc-500">GÜNÜN GALİBİ: </span><span class="${winCol}">${dayWinner}</span></div>`;
                 container.appendChild(summary);
             });
         }
 
-        function addPlayerModal() { document.getElementById('add-player-modal').classList.remove('hidden'); document.getElementById('player-name').focus(); }
-        function closeModal() { document.getElementById('add-player-modal').classList.add('hidden'); }
-        function addPlayer(team) {
-            const name = document.getElementById('player-name').value.trim();
-            if (!name) return;
-            players.push({ id: Date.now().toString(), name: name, team: team, matches: 0, points: 0 });
-            localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); renderAll(); closeModal();
-            document.getElementById('player-name').value = '';
-        }
-        function removePlayer(id) { if (!confirm('Silinsin mi?')) return; players = players.filter(p => p.id !== id); localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); renderAll(); }
+        // --- OYUN YÖNETİM FONKSİYONLARI ---
         function startNewGameModal() {
             const redP = players.filter(p => p.team === 'red'); const blueP = players.filter(p => p.team === 'blue');
-            if (!redP.length || !blueP.length) return alert('Oyuncu eksik!');
+            if (!redP.length || !blueP.length) return alert('Her iki takımda da en az 1 oyuncu olmalı!');
             const rS = document.getElementById('red-select'); const bS = document.getElementById('blue-select');
             rS.innerHTML = ''; bS.innerHTML = '';
             redP.forEach(p => rS.innerHTML += `<option value="${p.id}">${p.name}</option>`);
             blueP.forEach(p => bS.innerHTML += `<option value="${p.id}">${p.name}</option>`);
             document.getElementById('new-game-modal').classList.remove('hidden');
         }
-        function closeNewGameModal() { document.getElementById('new-game-modal').classList.add('hidden'); }
+
         function startGameFromModal() {
             const rId = document.getElementById('red-select').value; const bId = document.getElementById('blue-select').value;
             const rP = players.find(p => p.id === rId); const bP = players.find(p => p.id === bId);
             currentGame = { redId: rId, redName: rP.name, blueId: bId, blueName: bP.name, date: new Date().toLocaleDateString('tr-TR'), time: new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute: '2-digit'}) };
+            
+            document.getElementById('btn-new-game').classList.add('hidden');
             document.getElementById('active-game').classList.remove('hidden');
-            document.getElementById('red-fighter').innerHTML = `<div class="text-xl font-bold text-red-400 italic">${currentGame.redName}</div>`;
-            document.getElementById('blue-fighter').innerHTML = `<div class="text-xl font-bold text-blue-400 italic">${currentGame.blueName}</div>`;
+            document.getElementById('red-fighter').innerHTML = `<div class="text-xl font-bold text-red-400 italic">${currentGame.redName}</div><div class="text-[9px] text-red-500/50 uppercase font-black mt-1">Kırmızı Takım</div>`;
+            document.getElementById('blue-fighter').innerHTML = `<div class="text-xl font-bold text-blue-400 italic">${currentGame.blueName}</div><div class="text-[9px] text-blue-500/50 uppercase font-black mt-1">Mavi Takım</div>`;
             closeNewGameModal();
         }
+
+        // Yeni: Aktif maçı iptal etme
+        function cancelActiveGame() {
+            if(confirm('Devam eden maçı iptal etmek istiyor musunuz?')) {
+                currentGame = null;
+                document.getElementById('active-game').classList.add('hidden');
+                document.getElementById('btn-new-game').classList.remove('hidden');
+            }
+        }
+
         function selectWinner(winnerTeam) {
             if (!currentGame) return;
             const wId = winnerTeam === 'red' ? currentGame.redId : currentGame.blueId;
             games.push({ ...currentGame, id: Date.now().toString(), winnerId: wId });
-            localStorage.setItem(GAMES_KEY, JSON.stringify(games)); renderAll();
+            localStorage.setItem(GAMES_KEY, JSON.stringify(games)); 
+            
             document.getElementById('active-game').classList.add('win-flash');
-            setTimeout(() => { document.getElementById('active-game').classList.remove('win-flash'); document.getElementById('active-game').classList.add('hidden'); }, 600);
-            currentGame = null;
+            setTimeout(() => { 
+                document.getElementById('active-game').classList.remove('win-flash'); 
+                document.getElementById('active-game').classList.add('hidden');
+                document.getElementById('btn-new-game').classList.remove('hidden');
+                currentGame = null;
+                renderAll();
+            }, 600);
         }
-        function resetAll() { if (confirm('Sıfırladığında tüm puan ve oyunlar silinir ve saedce oyuncuların isimleri kalır. Emin misin?')) { localStorage.clear(); players = []; games = []; init(); } }
+
+        // Yeni: Kayıtlı maçı silme (Puanlar otomatik güncellenir)
+        function deleteGame(gameId) {
+            if (confirm('Bu maçı silmek istediğinize emin misiniz? Puan tabloları güncellenecektir.')) {
+                games = games.filter(g => g.id !== gameId);
+                localStorage.setItem(GAMES_KEY, JSON.stringify(games));
+                renderAll();
+            }
+        }
+
+        // --- DİĞER FONKSİYONLAR ---
+        function toggleSection(type) {
+            expanded[type] = !expanded[type];
+            const extra = document.getElementById(type + '-extra');
+            const btn = document.getElementById('btn-' + type);
+            if (expanded[type]) {
+                extra.style.maxHeight = extra.scrollHeight + "px";
+                btn.textContent = "DAHA AZ";
+            } else {
+                extra.style.maxHeight = "0";
+                btn.textContent = "DAHA FAZLA";
+            }
+        }
+
+        function addPlayer(team) {
+            const name = document.getElementById('player-name').value.trim();
+            if (!name) return;
+            players.push({ id: Date.now().toString(), name: name, team: team });
+            localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); 
+            renderAll(); closeModal();
+            document.getElementById('player-name').value = '';
+        }
+
+        function removePlayer(id) { 
+            if (confirm('Oyuncuyu silmek tüm geçmiş maç verilerini bozmaz ama listeden kaldırır. Emin misiniz?')) {
+                players = players.filter(p => p.id !== id); 
+                localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); 
+                renderAll(); 
+            }
+        }
+
+        function resetAll() { if (confirm('TÜM VERİLER (Oyuncular dahil) silinecektir. Emin misiniz?')) { localStorage.clear(); players = []; games = []; init(); } }
+        function closeModal() { document.getElementById('add-player-modal').classList.add('hidden'); }
+        function addPlayerModal() { document.getElementById('add-player-modal').classList.remove('hidden'); document.getElementById('player-name').focus(); }
+        function closeNewGameModal() { document.getElementById('new-game-modal').classList.add('hidden'); }
+
         init();
     </script>
-
-    <footer class="mt-20 border-t border-zinc-800 bg-zinc-950/50 pt-16 pb-8 text-white">
-        <div class="max-w-[1600px] mx-auto px-4 lg:p-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
-                <div>
-                    <h4 class="text-xl font-bold mb-6 text-orange-500 flex items-center gap-2 italic">
-                        <i class="fas fa-question-circle"></i> NASIL ÇALIŞIR?
-                    </h4>
-                    <p class="text-zinc-400 leading-relaxed text-sm">
-                        Survivor Arena, rekabetçi oyunlarınızı kayıt altına alan dijital bir hakem panelidir. 
-                        Oyuncuları takımlara ayırır, yapılan her maçı saniyesi saniyesine arşivler ve galibiyet 
-                        oranlarına göre otomatik bir puan durumu oluşturur. Tek yapmanız gereken şey sevdiğiniz bu
-                        show programını izlerken aynı anda eşleşen oyuncuları ve akabinde kazananı uygulamaya girmek. 
-                        Survivor Arena, geri kalan her şeyi sizin için halleder ve sizde sadece skor tablosunu izleyerek 
-                        günün en iyi oyuncusunu ve genel performansları takip ederek keyif alırsınız.
-                    </p>
-                </div>
-                <div>
-                    <h4 class="text-xl font-bold mb-6 text-emerald-500 flex items-center gap-2 italic">
-                        <i class="fas fa-star"></i> ÖZELLİKLER
-                    </h4>
-                    <ul class="space-y-3 text-sm text-zinc-400">
-                        <li class="flex items-start gap-2">
-                            <i class="fas fa-check text-emerald-500 mt-1"></i>
-                            <span><b>Dinamik Kadro:</b> İstediğiniz an oyuncu ekleyip çıkarabilirsiniz.</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <i class="fas fa-check text-emerald-500 mt-1"></i>
-                            <span><b>Günün Skorları:</b> Survivor'ı izlediğiniz günün skorlarını girerek günün iyi oyuncusunu ve kötü oyuncusunu görebilirsiniz.</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <i class="fas fa-check text-emerald-500 mt-1"></i>
-                            <span><b>Genel Performanslar:</b> Oyunları sıkı takip edip eşleşenleri ve kazananları girerseniz genel performansı ve kötüleride takip etmiş olursunuz. Günlük puan tablosu haricinde Genel Puan tablosuda takip ettiğiniz turnuvanıza keyif katar.</span>
-                        </li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-xl font-bold mb-6 text-blue-500 flex items-center gap-2 italic">
-                        <i class="fas fa-gamepad"></i> NASIL OYNANIR?
-                    </h4>
-                    <p class="text-sm text-zinc-400">
-                        Merak etmeyin şuanda en güncel oyuncularımızı sizin için otomatikman ekledik.
-                        Dolayısıyla tek tek bütün oyuncuları girmeyeceksiniz. Daha sonra oyuncu eklenir veya çıkarsa tabiki
-                        silme ve ekleme özelliği uygulama da vardır. Oynamak için Yeni oyun başlatın, oyuncularınızı seçin.
-                        Bir kırmızı ve bir mavi takımdan
-                        seçin ve tv deki oyunun sonucuna göre kazanan kişinin altındaki butona tıklayın.
-                        Böylelikle kazanan girilmiş olur ve tüm istatistiklerin otomatik güncellenmesini izleyin.
-                    </p>
-                </div>
-            </div>
-            <div class="border-t border-zinc-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-zinc-500 text-xs uppercase tracking-widest font-bold">
-                <div>SURVIVOR ARENA v2.0</div>
-                <div>&copy; 2026 Turnuva Takip Uygulaması</div>
-            </div>
-        </div>
-    </footer>    
 </body>
 </html>
