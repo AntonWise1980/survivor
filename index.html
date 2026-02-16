@@ -16,6 +16,11 @@
         ::-webkit-scrollbar-track { background: #18181b; }
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
         .extra-content { transition: max-height 0.5s ease-out; overflow: hidden; }
+        
+        /* Akordeon için özel geçiş */
+        .archive-content { transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
+        .archive-item.active .chevron { transform: rotate(180deg); }
+        .archive-item.active .archive-header { background: #27272a; border-color: #3f3f46; }
     </style>
 </head>
 <body class="bg-zinc-900 text-white min-h-screen">
@@ -84,7 +89,7 @@
                         <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
                             <i class="fas fa-history text-zinc-400"></i> MAÇ GEÇMİŞİ
                         </h3>
-                        <div id="game-archive" class="space-y-4"></div>
+                        <div id="game-archive" class="space-y-3"></div>
                     </div>
                 </div>
             </div>
@@ -155,6 +160,7 @@
         const GAMES_KEY = 'survivor_games';
         let players = []; let games = []; let currentGame = null;
         let expanded = { daily: false, general: false, red: false, blue: false };
+        let openArchives = {}; // Hangi günlerin açık olduğunu tutar
 
         function init() {
             const storedPlayers = localStorage.getItem(PLAYERS_KEY);
@@ -168,10 +174,14 @@
                 localStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
             }
             games = JSON.parse(localStorage.getItem(GAMES_KEY)) || [];
+            
+            // Başlangıçta en son günü açık göster
+            const lastDate = [...new Set(games.map(g => g.date))].sort((a,b) => b.localeCompare(a))[0];
+            if(lastDate) openArchives[lastDate] = true;
+
             renderAll();
         }
 
-        // --- TEMEL RENDER FONKSİYONLARI ---
         function renderAll() {
             renderTeam('red'); renderTeam('blue');
             renderArchive();
@@ -179,6 +189,91 @@
             renderScoreboard('general');
         }
 
+        function toggleArchive(date) {
+            openArchives[date] = !openArchives[date];
+            renderArchive();
+        }
+
+        function renderArchive() {
+            const container = document.getElementById('game-archive');
+            container.innerHTML = '';
+            
+            const grouped = {};
+            games.forEach(game => { if (!grouped[game.date]) grouped[game.date] = []; grouped[game.date].push(game); });
+            const sortedDates = Object.keys(grouped).sort((a, b) => b.split('.').reverse().join('-').localeCompare(a.split('.').reverse().join('-')));
+            
+            if (sortedDates.length === 0) {
+                container.innerHTML = '<div class="text-zinc-600 text-center py-10 text-sm italic">Henüz oynanmış bir maç yok.</div>';
+                return;
+            }
+
+            sortedDates.forEach(date => {
+                const dayGames = grouped[date];
+                let rW = 0, bW = 0;
+                dayGames.forEach(g => {
+                    const winnerP = players.find(x => x.id === g.winnerId);
+                    if(winnerP) (winnerP.team === 'red') ? rW++ : bW++;
+                });
+
+                const isOpen = openArchives[date];
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `archive-item border border-zinc-800 rounded-2xl overflow-hidden bg-zinc-900/20 ${isOpen ? 'active' : ''}`;
+                
+                // Header (Tıklanabilir Alan)
+                itemDiv.innerHTML = `
+                    <div onclick="toggleArchive('${date}')" class="archive-header flex items-center justify-between p-4 cursor-pointer hover:bg-zinc-800/50 transition-all">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-chevron-down text-[10px] text-zinc-500 chevron transition-transform duration-300"></i>
+                            <span class="text-xs font-black uppercase tracking-widest text-zinc-400">${date}</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-2 text-[11px] font-bold">
+                                <span class="text-red-500">${rW}</span>
+                                <span class="text-zinc-700">-</span>
+                                <span class="text-blue-500">${bW}</span>
+                            </div>
+                            <div class="w-2 h-2 rounded-full ${rW > bW ? 'bg-red-500' : (bW > rW ? 'bg-blue-500' : 'bg-zinc-600')} shadow-[0_0_8px_currentColor]"></div>
+                        </div>
+                    </div>
+                    <div class="archive-content" style="max-height: ${isOpen ? '2000px' : '0'}">
+                        <div class="p-4 pt-0 space-y-3">
+                            <div class="h-px bg-zinc-800/50 mb-4"></div>
+                            ${[...dayGames].reverse().map(game => {
+                                const winner = players.find(p => p.id === game.winnerId) || {name: 'Silinmiş'};
+                                return `
+                                    <div class="bg-zinc-800/30 border border-zinc-800/50 p-3 rounded-xl relative group">
+                                        <div class="flex justify-between text-[8px] text-zinc-600 mb-2 font-bold uppercase">
+                                            <span>${game.time}</span>
+                                            <button onclick="deleteGame('${game.id}')" class="text-zinc-700 hover:text-red-500 transition-colors">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex-1 text-right text-xs font-bold ${game.winnerId === game.redId ? 'text-red-400' : 'text-zinc-600'}">${game.redName}</div>
+                                            <div class="text-[8px] text-zinc-800 font-black italic">VS</div>
+                                            <div class="flex-1 text-left text-xs font-bold ${game.winnerId === game.blueId ? 'text-blue-400' : 'text-zinc-600'}">${game.blueName}</div>
+                                        </div>
+                                        <div class="text-center text-[9px] font-black text-emerald-500/80 mt-2 uppercase italic">
+                                            🏆 ${winner.name}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                            
+                            <div class="mt-4 p-3 bg-zinc-800/10 border-t border-zinc-800 border-dashed text-center">
+                                <span class="text-[9px] font-black text-zinc-500 uppercase tracking-tighter">Günün Galibi: </span>
+                                <span class="text-[9px] font-black uppercase ${rW > bW ? 'text-red-500' : (bW > rW ? 'text-blue-500' : 'text-zinc-400')}">
+                                    ${rW > bW ? 'Kırmızı Takım' : (bW > rW ? 'Mavi Takım' : 'Berabere')}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+
+        // --- DİĞER FONKSİYONLAR ---
         function renderTeam(team) {
             const topC = document.getElementById(team + '-players-top');
             const extraC = document.getElementById(team + '-extra');
@@ -200,7 +295,6 @@
             const btn = document.getElementById('btn-' + type);
             topC.innerHTML = ''; extraC.innerHTML = '';
             
-            // İstatistikleri maç geçmişinden dinamik hesaplıyoruz (SİLİNENLER OTOMATİK DÜŞER)
             let stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0 }));
             const today = new Date().toLocaleDateString('tr-TR');
             const relevantGames = (type === 'daily') ? games.filter(g => g.date === today) : games;
@@ -223,59 +317,6 @@
             if (sorted.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
         }
 
-        function renderArchive() {
-            const container = document.getElementById('game-archive');
-            container.innerHTML = '';
-            const grouped = {};
-            games.forEach(game => { if (!grouped[game.date]) grouped[game.date] = []; grouped[game.date].push(game); });
-            const sortedDates = Object.keys(grouped).sort((a, b) => b.split('.').reverse().join('-').localeCompare(a.split('.').reverse().join('-')));
-            
-            sortedDates.forEach(date => {
-                const dayGames = grouped[date];
-                let rW = 0, bW = 0;
-                dayGames.forEach(g => {
-                    const winnerP = players.find(x => x.id === g.winnerId);
-                    if(winnerP) (winnerP.team === 'red') ? rW++ : bW++;
-                });
-
-                const dayHeader = document.createElement('div');
-                dayHeader.className = 'flex items-center gap-4 my-8';
-                dayHeader.innerHTML = `<div class="flex-1 h-px bg-zinc-700"></div><div class="text-[10px] font-black px-4 uppercase text-zinc-500">${date}</div><div class="flex-1 h-px bg-zinc-700"></div>`;
-                container.appendChild(dayHeader);
-
-                [...dayGames].reverse().forEach(game => {
-                    const winner = players.find(p => p.id === game.winnerId) || {name: 'Silinmiş'};
-                    const div = document.createElement('div');
-                    div.className = 'group bg-zinc-900/40 border border-zinc-800 p-4 rounded-2xl mb-3 relative overflow-hidden';
-                    div.innerHTML = `
-                        <div class="flex justify-between text-[9px] text-zinc-500 mb-2">
-                            <span>${game.time}</span>
-                            <button onclick="deleteGame('${game.id}')" class="text-zinc-600 hover:text-red-500 font-bold flex items-center gap-1 transition-all">
-                                <i class="fas fa-trash-alt"></i> SİL
-                            </button>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            <div class="flex-1 text-right text-sm font-bold ${game.winnerId === game.redId ? 'text-red-400' : 'text-zinc-600'}">${game.redName}</div>
-                            <div class="text-[10px] text-zinc-700 font-black">VS</div>
-                            <div class="flex-1 text-left text-sm font-bold ${game.winnerId === game.blueId ? 'text-blue-400' : 'text-zinc-600'}">${game.blueName}</div>
-                        </div>
-                        <div class="text-center text-[10px] font-bold text-emerald-400 mt-2 uppercase italic tracking-widest">
-                            <i class="fas fa-crown text-[8px]"></i> ${winner.name}
-                        </div>
-                    `;
-                    container.appendChild(div);
-                });
-
-                const dayWinner = rW > bW ? 'KIRMIZI' : (bW > rW ? 'MAVİ' : 'BERABERE');
-                const winCol = rW > bW ? 'text-red-500' : (bW > rW ? 'text-blue-500' : 'text-zinc-500');
-                const summary = document.createElement('div');
-                summary.className = 'bg-zinc-800/80 border-2 border-dashed border-zinc-700 p-4 rounded-3xl mb-12 text-center';
-                summary.innerHTML = `<div class="flex justify-around items-center mb-2"><div class="text-2xl font-black text-red-500">${rW}</div><div class="text-2xl font-black text-blue-500">${bW}</div></div><div class="text-[10px] font-black uppercase"><span class="text-zinc-500">GÜNÜN GALİBİ: </span><span class="${winCol}">${dayWinner}</span></div>`;
-                container.appendChild(summary);
-            });
-        }
-
-        // --- OYUN YÖNETİM FONKSİYONLARI ---
         function startNewGameModal() {
             const redP = players.filter(p => p.team === 'red'); const blueP = players.filter(p => p.team === 'blue');
             if (!redP.length || !blueP.length) return alert('Her iki takımda da en az 1 oyuncu olmalı!');
@@ -298,7 +339,6 @@
             closeNewGameModal();
         }
 
-        // Yeni: Aktif maçı iptal etme
         function cancelActiveGame() {
             if(confirm('Devam eden maçı iptal etmek istiyor musunuz?')) {
                 currentGame = null;
@@ -313,6 +353,9 @@
             games.push({ ...currentGame, id: Date.now().toString(), winnerId: wId });
             localStorage.setItem(GAMES_KEY, JSON.stringify(games)); 
             
+            // Yeni maçı eklediğimizde o günün akordeonunu otomatik aç
+            openArchives[currentGame.date] = true;
+
             document.getElementById('active-game').classList.add('win-flash');
             setTimeout(() => { 
                 document.getElementById('active-game').classList.remove('win-flash'); 
@@ -323,7 +366,6 @@
             }, 600);
         }
 
-        // Yeni: Kayıtlı maçı silme (Puanlar otomatik güncellenir)
         function deleteGame(gameId) {
             if (confirm('Bu maçı silmek istediğinize emin misiniz? Puan tabloları güncellenecektir.')) {
                 games = games.filter(g => g.id !== gameId);
@@ -332,7 +374,6 @@
             }
         }
 
-        // --- DİĞER FONKSİYONLAR ---
         function toggleSection(type) {
             expanded[type] = !expanded[type];
             const extra = document.getElementById(type + '-extra');
