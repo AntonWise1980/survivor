@@ -16,17 +16,11 @@
         ::-webkit-scrollbar-track { background: #18181b; }
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
         .extra-content { transition: max-height 0.5s ease-out; overflow: hidden; }
+        
+        /* Akordeon için özel geçiş */
         .archive-content { transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
         .archive-item.active .chevron { transform: rotate(180deg); }
         .archive-item.active .archive-header { background: #27272a; border-color: #3f3f46; }
-        
-        /* Toggle Switch Style */
-        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #3f3f46; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #f97316; }
-        input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
 <body class="bg-zinc-900 text-white min-h-screen">
@@ -37,11 +31,11 @@
                 <h1 class="text-4xl font-bold tracking-tighter">SURVIVOR ARENA</h1>
             </div>
             <div class="flex gap-4">
-                <button onclick="addPlayerModal()" class="bg-emerald-600 hover:bg-emerald-700 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors text-sm font-bold">
-                    <i class="fas fa-user-plus"></i> OYUNCU EKLE
+                <button onclick="addPlayerModal()" class="bg-emerald-600 hover:bg-emerald-700 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
+                    <i class="fas fa-user-plus"></i> Oyuncu Ekle
                 </button>
-                <button onclick="resetAll()" class="bg-zinc-700 hover:bg-zinc-800 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors text-sm font-bold">
-                    <i class="fas fa-sync-alt"></i> SIFIRLA
+                <button onclick="resetAll()" class="bg-zinc-700 hover:bg-zinc-800 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
+                    <i class="fas fa-sync-alt"></i> Sıfırla
                 </button>
             </div>
         </div>
@@ -77,7 +71,7 @@
                     </button>
 
                     <div id="active-game" class="hidden bg-zinc-900 border-2 border-orange-500/50 rounded-2xl p-6 mb-8 relative">
-                        <div id="active-tag" class="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-[10px] px-3 py-1 rounded-full font-black uppercase">Canlı Maç</div>
+                        <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-[10px] px-3 py-1 rounded-full font-black uppercase">Canlı Maç</div>
                         <div class="grid grid-cols-2 gap-6 items-center mt-2">
                             <div id="red-fighter" class="text-center p-4 bg-red-500/10 rounded-xl border border-red-500/20"></div>
                             <div id="blue-fighter" class="text-center p-4 bg-blue-500/10 rounded-xl border border-blue-500/20"></div>
@@ -144,45 +138,32 @@
 
     <div id="new-game-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 text-white">
         <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-lg">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold italic text-orange-500 uppercase">OYUNCU SEÇİMİ</h3>
-                <div class="flex items-center gap-3 bg-zinc-800 px-4 py-2 rounded-2xl border border-zinc-700">
-                    <span class="text-[10px] font-black uppercase text-zinc-400">Bayrak</span>
-                    <label class="switch">
-                        <input type="checkbox" id="is-flag-game" onchange="toggleFlagSelection()">
-                        <span class="slider"></span>
-                    </label>
+            <h3 class="text-2xl font-bold mb-6 italic text-orange-500 text-center uppercase">Oyuncu Seçimi</h3>
+            <div class="space-y-4">
+                <div class="text-red-400 font-bold">KIRMIZI TAKIM: 
+                    <select id="red-select" class="w-full bg-zinc-800 p-4 rounded-xl mt-2 outline-none border border-zinc-700"></select>
+                </div>
+                <div class="text-center font-black text-zinc-600">VS</div>
+                <div class="text-blue-400 font-bold">MAVİ TAKIM: 
+                    <select id="blue-select" class="w-full bg-zinc-800 p-4 rounded-xl mt-2 outline-none border border-zinc-700"></select>
                 </div>
             </div>
-            
-            <div class="space-y-6">
-                <div class="bg-red-500/5 p-4 rounded-2xl border border-red-500/20">
-                    <div class="text-red-400 font-bold mb-2 flex items-center gap-2">
-                        <i class="fas fa-users"></i> KIRMIZI TAKIM
-                    </div>
-                    <div class="grid grid-cols-1 gap-2">
-                        <select id="red-select-1" class="w-full bg-zinc-800 p-4 rounded-xl outline-none border border-zinc-700"></select>
-                        <select id="red-select-2" class="hidden w-full bg-zinc-800 p-4 rounded-xl outline-none border border-zinc-700"></select>
-                    </div>
-                </div>
-
-                <div class="text-center font-black text-zinc-600 italic">VS</div>
-
-                <div class="bg-blue-500/5 p-4 rounded-2xl border border-blue-500/20">
-                    <div class="text-blue-400 font-bold mb-2 flex items-center gap-2">
-                        <i class="fas fa-users"></i> MAVİ TAKIM
-                    </div>
-                    <div class="grid grid-cols-1 gap-2">
-                        <select id="blue-select-1" class="w-full bg-zinc-800 p-4 rounded-xl outline-none border border-zinc-700"></select>
-                        <select id="blue-select-2" class="hidden w-full bg-zinc-800 p-4 rounded-xl outline-none border border-zinc-700"></select>
-                    </div>
-                </div>
-            </div>
-
             <div class="flex gap-4 mt-8">
                 <button onclick="startGameFromModal()" class="flex-1 bg-orange-600 py-4 rounded-2xl font-bold italic text-lg shadow-lg">MÜSABAKAYI BAŞLAT</button>
                 <button onclick="closeNewGameModal()" class="flex-1 bg-zinc-700 py-4 rounded-2xl font-bold">İptal</button>
             </div>
+        </div>
+    </div>
+
+    <div id="edit-game-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 text-white">
+        <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-6 text-center uppercase italic">Sonucu Düzelt</h3>
+            <div id="edit-info" class="text-center mb-6 text-zinc-400 text-sm"></div>
+            <div class="flex gap-4">
+                <button id="edit-win-red" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZI</button>
+                <button id="edit-win-blue" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİ</button>
+            </div>
+            <button onclick="document.getElementById('edit-game-modal').classList.add('hidden')" class="mt-6 w-full text-zinc-500">Vazgeç</button>
         </div>
     </div>
 
@@ -206,82 +187,247 @@
                 localStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
             }
             games = JSON.parse(localStorage.getItem(GAMES_KEY)) || [];
+            
             const lastDate = [...new Set(games.map(g => g.date))].sort((a,b) => b.localeCompare(a))[0];
             if(lastDate) openArchives[lastDate] = true;
+
             renderAll();
         }
 
-        function toggleFlagSelection() {
-            const isFlag = document.getElementById('is-flag-game').checked;
-            document.getElementById('red-select-2').classList.toggle('hidden', !isFlag);
-            document.getElementById('blue-select-2').classList.toggle('hidden', !isFlag);
+        function renderAll() {
+            renderTeam('red'); renderTeam('blue');
+            renderArchive();
+            renderScoreboard('daily');
+            renderScoreboard('general');
+        }
+
+        function toggleArchive(date) {
+            openArchives[date] = !openArchives[date];
+            renderArchive();
+        }
+
+        function renderArchive() {
+            const container = document.getElementById('game-archive');
+            container.innerHTML = '';
+            
+            const grouped = {};
+            games.forEach(game => { if (!grouped[game.date]) grouped[game.date] = []; grouped[game.date].push(game); });
+            const sortedDates = Object.keys(grouped).sort((a, b) => b.split('.').reverse().join('-').localeCompare(a.split('.').reverse().join('-')));
+            
+            if (sortedDates.length === 0) {
+                container.innerHTML = '<div class="text-zinc-600 text-center py-10 text-sm italic">Henüz oynanmış bir maç yok.</div>';
+                return;
+            }
+
+            sortedDates.forEach(date => {
+                const dayGames = grouped[date];
+                let rW = 0, bW = 0;
+                dayGames.forEach(g => {
+                    const winnerP = players.find(x => x.id === g.winnerId);
+                    if(winnerP) (winnerP.team === 'red') ? rW++ : bW++;
+                });
+
+                const isOpen = openArchives[date];
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `archive-item border border-zinc-800 rounded-2xl overflow-hidden bg-zinc-900/20 ${isOpen ? 'active' : ''}`;
+                
+                itemDiv.innerHTML = `
+                    <div onclick="toggleArchive('${date}')" class="archive-header flex items-center justify-between p-4 cursor-pointer hover:bg-zinc-800/50 transition-all">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-chevron-down text-[10px] text-zinc-500 chevron transition-transform duration-300"></i>
+                            <span class="text-xs font-black uppercase tracking-widest text-zinc-400">${date}</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-2 text-[11px] font-bold">
+                                <span class="text-red-500">${rW}</span>
+                                <span class="text-zinc-700">-</span>
+                                <span class="text-blue-500">${bW}</span>
+                            </div>
+                            <div class="w-2 h-2 rounded-full ${rW > bW ? 'bg-red-500' : (bW > rW ? 'bg-blue-500' : 'bg-zinc-600')} shadow-[0_0_8px_currentColor]"></div>
+                        </div>
+                    </div>
+                    <div class="archive-content" style="max-height: ${isOpen ? '2000px' : '0'}">
+                        <div class="p-4 pt-0 space-y-3">
+                            <div class="h-px bg-zinc-800/50 mb-4"></div>
+                            ${[...dayGames].reverse().map(game => {
+                                const winner = players.find(p => p.id === game.winnerId) || {name: 'Silinmiş'};
+                                return `
+                                    <div class="bg-zinc-800/30 border border-zinc-800/50 p-3 rounded-xl relative group">
+                                        <div class="flex justify-between text-[8px] text-zinc-600 mb-2 font-bold uppercase">
+                                            <span>${game.time}</span>
+                                            <div class="flex gap-3">
+                                                <button onclick="editGame('${game.id}')" class="text-zinc-700 hover:text-yellow-500 transition-colors">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button onclick="deleteGame('${game.id}')" class="text-zinc-700 hover:text-red-500 transition-colors">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex-1 text-right text-xs font-bold ${game.winnerId === game.redId ? 'text-red-400' : 'text-zinc-600'}">${game.redName}</div>
+                                            <div class="text-[8px] text-zinc-800 font-black italic">VS</div>
+                                            <div class="flex-1 text-left text-xs font-bold ${game.winnerId === game.blueId ? 'text-blue-400' : 'text-zinc-600'}">${game.blueName}</div>
+                                        </div>
+                                        <div class="text-center text-[9px] font-black text-emerald-500/80 mt-2 uppercase italic">
+                                            🏆 ${winner.name}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+
+        function editGame(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if(!game) return;
+            const modal = document.getElementById('edit-game-modal');
+            const info = document.getElementById('edit-info');
+            info.textContent = `${game.redName} vs ${game.blueName}`;
+            
+            document.getElementById('edit-win-red').onclick = () => updateGameResult(gameId, game.redId);
+            document.getElementById('edit-win-blue').onclick = () => updateGameResult(gameId, game.blueId);
+            
+            modal.classList.remove('hidden');
+        }
+
+        function updateGameResult(gameId, newWinnerId) {
+            const idx = games.findIndex(g => g.id === gameId);
+            if(idx !== -1) {
+                games[idx].winnerId = newWinnerId;
+                localStorage.setItem(GAMES_KEY, JSON.stringify(games));
+                document.getElementById('edit-game-modal').classList.add('hidden');
+                renderAll();
+            }
+        }
+
+        // --- OYUNCU DÜZENLEME (YENİ) ---
+        function editPlayer(id) {
+            const player = players.find(p => p.id === id);
+            if(!player) return;
+            
+            editingPlayerId = id;
+            document.getElementById('modal-title').textContent = "OYUNCU İSMİNİ DÜZELT";
+            document.getElementById('player-name').value = player.name;
+            
+            // Butonları güncelle butonuyla değiştir
+            document.getElementById('modal-buttons').innerHTML = `
+                <button onclick="updatePlayerName()" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">İSMİ GÜNCELLE</button>
+            `;
+            
+            document.getElementById('add-player-modal').classList.remove('hidden');
+        }
+
+        function updatePlayerName() {
+            const newName = document.getElementById('player-name').value.trim();
+            if(!newName) return;
+            
+            const idx = players.findIndex(p => p.id === editingPlayerId);
+            if(idx !== -1) {
+                players[idx].name = newName;
+                
+                // Geçmiş maçlardaki isimleri de güncelle (Tablo verileri için önemli)
+                games.forEach(g => {
+                    if(g.redId === editingPlayerId) g.redName = newName;
+                    if(g.blueId === editingPlayerId) g.blueName = newName;
+                });
+                
+                localStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
+                localStorage.setItem(GAMES_KEY, JSON.stringify(games));
+                closeModal();
+                renderAll();
+            }
+        }
+
+        function renderTeam(team) {
+            const topC = document.getElementById(team + '-players-top');
+            const extraC = document.getElementById(team + '-extra');
+            const btn = document.getElementById('btn-' + team);
+            topC.innerHTML = ''; extraC.innerHTML = '';
+            const teamPlayers = players.filter(p => p.team === team);
+            teamPlayers.forEach((player, i) => {
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between bg-zinc-900/50 border border-zinc-700/30 p-3 rounded-xl`;
+                div.innerHTML = `
+                    <div class="font-bold text-sm truncate">${player.name}</div>
+                    <div class="flex gap-3">
+                        <button onclick="editPlayer('${player.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors"><i class="fas fa-edit text-xs"></i></button>
+                        <button onclick="removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button>
+                    </div>`;
+                if (i < 7) topC.appendChild(div); else extraC.appendChild(div);
+            });
+            if (teamPlayers.length > 7) btn.classList.remove('hidden'); else btn.classList.add('hidden');
+        }
+
+        function renderScoreboard(type) {
+            const topC = document.getElementById(type + '-scoreboard-top');
+            const extraC = document.getElementById(type + '-extra');
+            const btn = document.getElementById('btn-' + type);
+            topC.innerHTML = ''; extraC.innerHTML = '';
+            
+            let stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0 }));
+            const today = new Date().toLocaleDateString('tr-TR');
+            const relevantGames = (type === 'daily') ? games.filter(g => g.date === today) : games;
+            
+            relevantGames.forEach(g => {
+                const winner = stats.find(s => s.id === g.winnerId);
+                const loserId = (g.winnerId === g.redId) ? g.blueId : g.redId;
+                const loser = stats.find(s => s.id === loserId);
+                if(winner) { winner.m++; winner.w++; }
+                if(loser) { loser.m++; loser.l++; }
+            });
+
+            const sorted = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || b.m - a.m);
+            sorted.forEach((p, i) => {
+                const div = document.createElement('div');
+                div.className = `flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50`;
+                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div>`;
+                if (i < 6) topC.appendChild(div); else extraC.appendChild(div);
+            });
+            if (sorted.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
         }
 
         function startNewGameModal() {
-            const isFlag = document.getElementById('is-flag-game').checked = false;
-            toggleFlagSelection();
-            
-            const redP = players.filter(p => p.team === 'red'); 
-            const blueP = players.filter(p => p.team === 'blue');
-            if (!redP.length || !blueP.length) return alert('Oyuncu eksik!');
-
-            const selects = ['red-select-1', 'red-select-2', 'blue-select-1', 'blue-select-2'];
-            selects.forEach(id => {
-                const el = document.getElementById(id);
-                el.innerHTML = '';
-                const teamPlayers = id.includes('red') ? redP : blueP;
-                teamPlayers.forEach(p => el.innerHTML += `<option value="${p.id}">${p.name}</option>`);
-            });
+            const redP = players.filter(p => p.team === 'red'); const blueP = players.filter(p => p.team === 'blue');
+            if (!redP.length || !blueP.length) return alert('Her iki takımda da en az 1 oyuncu olmalı!');
+            const rS = document.getElementById('red-select'); const bS = document.getElementById('blue-select');
+            rS.innerHTML = ''; bS.innerHTML = '';
+            redP.forEach(p => rS.innerHTML += `<option value="${p.id}">${p.name}</option>`);
+            blueP.forEach(p => bS.innerHTML += `<option value="${p.id}">${p.name}</option>`);
             document.getElementById('new-game-modal').classList.remove('hidden');
         }
 
         function startGameFromModal() {
-            const isFlag = document.getElementById('is-flag-game').checked;
-            const r1 = document.getElementById('red-select-1').value;
-            const r2 = document.getElementById('red-select-2').value;
-            const b1 = document.getElementById('blue-select-1').value;
-            const b2 = document.getElementById('blue-select-2').value;
-
-            if (isFlag && (r1 === r2 || b1 === b2)) return alert("Aynı takımdan iki farklı oyuncu seçmelisiniz!");
-
-            const rP1 = players.find(p => p.id === r1);
-            const rP2 = players.find(p => p.id === r2);
-            const bP1 = players.find(p => p.id === b1);
-            const bP2 = players.find(p => p.id === b2);
-
-            currentGame = {
-                isFlag: isFlag,
-                redIds: isFlag ? [r1, r2] : [r1],
-                redNames: isFlag ? `${rP1.name} + ${rP2.name}` : rP1.name,
-                blueIds: isFlag ? [b1, b2] : [b1],
-                blueNames: isFlag ? `${bP1.name} + ${bP2.name}` : bP1.name,
-                date: new Date().toLocaleDateString('tr-TR'),
-                time: new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute: '2-digit'})
-            };
-
+            const rId = document.getElementById('red-select').value; const bId = document.getElementById('blue-select').value;
+            const rP = players.find(p => p.id === rId); const bP = players.find(p => p.id === bId);
+            currentGame = { redId: rId, redName: rP.name, blueId: bId, blueName: bP.name, date: new Date().toLocaleDateString('tr-TR'), time: new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute: '2-digit'}) };
+            
             document.getElementById('btn-new-game').classList.add('hidden');
             document.getElementById('active-game').classList.remove('hidden');
-            document.getElementById('active-tag').textContent = isFlag ? "Bayrak Yarışı" : "Canlı Maç";
-            
-            document.getElementById('red-fighter').innerHTML = `<div class="text-lg font-bold text-red-400 italic">${currentGame.redNames}</div>`;
-            document.getElementById('blue-fighter').innerHTML = `<div class="text-lg font-bold text-blue-400 italic">${currentGame.blueNames}</div>`;
+            document.getElementById('red-fighter').innerHTML = `<div class="text-xl font-bold text-red-400 italic">${currentGame.redName}</div><div class="text-[9px] text-red-500/50 uppercase font-black mt-1">Kırmızı Takım</div>`;
+            document.getElementById('blue-fighter').innerHTML = `<div class="text-xl font-bold text-blue-400 italic">${currentGame.blueName}</div><div class="text-[9px] text-blue-500/50 uppercase font-black mt-1">Mavi Takım</div>`;
             closeNewGameModal();
+        }
+
+        function cancelActiveGame() {
+            if(confirm('Devam eden maçı iptal etmek istiyor musunuz?')) {
+                currentGame = null;
+                document.getElementById('active-game').classList.add('hidden');
+                document.getElementById('btn-new-game').classList.remove('hidden');
+            }
         }
 
         function selectWinner(winnerTeam) {
             if (!currentGame) return;
-            const winnerIds = (winnerTeam === 'red') ? currentGame.redIds : currentGame.blueIds;
-            const loserIds = (winnerTeam === 'red') ? currentGame.blueIds : currentGame.redIds;
-
-            games.push({ 
-                ...currentGame, 
-                id: Date.now().toString(), 
-                winnerIds: winnerIds,
-                loserIds: loserIds,
-                winnerTeam: winnerTeam
-            });
-
+            const wId = winnerTeam === 'red' ? currentGame.redId : currentGame.blueId;
+            games.push({ ...currentGame, id: Date.now().toString(), winnerId: wId });
             localStorage.setItem(GAMES_KEY, JSON.stringify(games)); 
+            openArchives[currentGame.date] = true;
+
             document.getElementById('active-game').classList.add('win-flash');
             setTimeout(() => { 
                 document.getElementById('active-game').classList.remove('win-flash'); 
@@ -292,139 +438,60 @@
             }, 600);
         }
 
-        function renderScoreboard(type) {
-            const topC = document.getElementById(type + '-scoreboard-top');
-            const extraC = document.getElementById(type + '-extra');
-            topC.innerHTML = ''; extraC.innerHTML = '';
-            
-            let stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0 }));
-            const today = new Date().toLocaleDateString('tr-TR');
-            const relevantGames = (type === 'daily') ? games.filter(g => g.date === today) : games;
-            
-            relevantGames.forEach(g => {
-                // Kazananlar (winnerIds array olduğu için her birine ekle)
-                g.winnerIds.forEach(id => {
-                    const p = stats.find(s => s.id === id);
-                    if(p) { p.m++; p.w++; }
-                });
-                // Kaybedenler
-                g.loserIds.forEach(id => {
-                    const p = stats.find(s => s.id === id);
-                    if(p) { p.m++; p.l++; }
-                });
-            });
-
-            const sorted = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || b.m - a.m);
-            sorted.forEach((p, i) => {
-                const div = document.createElement('div');
-                div.className = `flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50`;
-                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div>`;
-                if (i < 6) topC.appendChild(div); else extraC.appendChild(div);
-            });
-            document.getElementById('btn-' + type).classList.toggle('hidden', sorted.length <= 6);
-        }
-
-        function renderArchive() {
-            const container = document.getElementById('game-archive');
-            container.innerHTML = '';
-            const grouped = {};
-            games.forEach(game => { if (!grouped[game.date]) grouped[game.date] = []; grouped[game.date].push(game); });
-            const sortedDates = Object.keys(grouped).sort((a, b) => b.split('.').reverse().join('-').localeCompare(a.split('.').reverse().join('-')));
-            
-            if (!sortedDates.length) {
-                container.innerHTML = '<div class="text-zinc-600 text-center py-10 text-sm italic">Henüz maç yok.</div>';
-                return;
+        function deleteGame(gameId) {
+            if (confirm('Bu maçı silmek istediğinize emin misiniz? Puan tabloları güncellenecektir.')) {
+                games = games.filter(g => g.id !== gameId);
+                localStorage.setItem(GAMES_KEY, JSON.stringify(games));
+                renderAll();
             }
-
-            sortedDates.forEach(date => {
-                const dayGames = grouped[date];
-                let rW = 0, bW = 0;
-                dayGames.forEach(g => g.winnerTeam === 'red' ? rW++ : bW++);
-                const isOpen = openArchives[date];
-                const itemDiv = document.createElement('div');
-                itemDiv.className = `archive-item border border-zinc-800 rounded-2xl overflow-hidden bg-zinc-900/20 ${isOpen ? 'active' : ''}`;
-                itemDiv.innerHTML = `
-                    <div onclick="toggleArchive('${date}')" class="archive-header flex items-center justify-between p-4 cursor-pointer hover:bg-zinc-800/50 transition-all">
-                        <div class="flex items-center gap-3">
-                            <i class="fas fa-chevron-down text-[10px] text-zinc-500 chevron transition-transform duration-300"></i>
-                            <span class="text-xs font-black uppercase tracking-widest text-zinc-400">${date}</span>
-                        </div>
-                        <div class="flex items-center gap-4 text-[11px] font-bold">
-                            <span class="text-red-500">${rW}</span><span class="text-zinc-700">-</span><span class="text-blue-500">${bW}</span>
-                        </div>
-                    </div>
-                    <div class="archive-content" style="max-height: ${isOpen ? '2000px' : '0'}">
-                        <div class="p-4 pt-0 space-y-3">
-                            <div class="h-px bg-zinc-800/50 mb-4"></div>
-                            ${[...dayGames].reverse().map(game => `
-                                <div class="bg-zinc-800/30 border border-zinc-800/50 p-3 rounded-xl relative">
-                                    <div class="flex justify-between text-[8px] text-zinc-600 mb-2 font-bold uppercase">
-                                        <span>${game.time} ${game.isFlag ? '🚩 BAYRAK' : ''}</span>
-                                        <button onclick="deleteGame('${game.id}')" class="hover:text-red-500"><i class="fas fa-trash-alt"></i></button>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <div class="flex-1 text-right text-xs font-bold ${game.winnerTeam === 'red' ? 'text-red-400' : 'text-zinc-600'}">${game.redNames}</div>
-                                        <div class="text-[8px] text-zinc-800 font-black italic">VS</div>
-                                        <div class="flex-1 text-left text-xs font-bold ${game.winnerTeam === 'blue' ? 'text-blue-400' : 'text-zinc-600'}">${game.blueNames}</div>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>`;
-                container.appendChild(itemDiv);
-            });
         }
 
-        // --- DİĞER FONKSİYONLAR (DEĞİŞMEDİ) ---
-        function renderAll() { renderTeam('red'); renderTeam('blue'); renderArchive(); renderScoreboard('daily'); renderScoreboard('general'); }
-        function toggleArchive(date) { openArchives[date] = !openArchives[date]; renderArchive(); }
-        function renderTeam(team) {
-            const topC = document.getElementById(team + '-players-top');
-            const extraC = document.getElementById(team + '-extra');
-            topC.innerHTML = ''; extraC.innerHTML = '';
-            const teamPlayers = players.filter(p => p.team === team);
-            teamPlayers.forEach((player, i) => {
-                const div = document.createElement('div');
-                div.className = `flex items-center justify-between bg-zinc-900/50 border border-zinc-700/30 p-3 rounded-xl`;
-                div.innerHTML = `<div class="font-bold text-sm truncate">${player.name}</div><div class="flex gap-3"><button onclick="editPlayer('${player.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors"><i class="fas fa-edit text-xs"></i></button><button onclick="removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button></div>`;
-                if (i < 7) topC.appendChild(div); else extraC.appendChild(div);
-            });
-            document.getElementById('btn-' + team).classList.toggle('hidden', teamPlayers.length <= 7);
-        }
         function toggleSection(type) {
             expanded[type] = !expanded[type];
             const extra = document.getElementById(type + '-extra');
             const btn = document.getElementById('btn-' + type);
-            extra.style.maxHeight = expanded[type] ? extra.scrollHeight + "px" : "0";
-            btn.textContent = expanded[type] ? "DAHA AZ" : "DAHA FAZLA";
+            if (expanded[type]) {
+                extra.style.maxHeight = extra.scrollHeight + "px";
+                btn.textContent = "DAHA AZ";
+            } else {
+                extra.style.maxHeight = "0";
+                btn.textContent = "DAHA FAZLA";
+            }
         }
+
         function addPlayer(team) {
             const name = document.getElementById('player-name').value.trim();
             if (!name) return;
             players.push({ id: Date.now().toString(), name: name, team: team });
             localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); 
             renderAll(); closeModal();
+            document.getElementById('player-name').value = '';
         }
-        function removePlayer(id) { if (confirm('Silinsin mi?')) { players = players.filter(p => p.id !== id); localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); renderAll(); } }
-        function editPlayer(id) {
-            const p = players.find(x => x.id === id);
-            editingPlayerId = id;
-            document.getElementById('modal-title').textContent = "DÜZENLE";
-            document.getElementById('player-name').value = p.name;
-            document.getElementById('modal-buttons').innerHTML = `<button onclick="updatePlayerName()" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">GÜNCELLE</button>`;
-            document.getElementById('add-player-modal').classList.remove('hidden');
+
+        function removePlayer(id) { 
+            if (confirm('Oyuncuyu silmek tüm geçmiş maç verilerini bozmaz ama listeden kaldırır. Emin misiniz?')) {
+                players = players.filter(p => p.id !== id); 
+                localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); 
+                renderAll(); 
+            }
         }
-        function updatePlayerName() {
-            const n = document.getElementById('player-name').value.trim();
-            const idx = players.findIndex(p => p.id === editingPlayerId);
-            if(idx !== -1) { players[idx].name = n; localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); closeModal(); renderAll(); }
+
+        function resetAll() { if (confirm('TÜM VERİLER (Oyuncular dahil) silinecektir. Emin misiniz?')) { localStorage.clear(); players = []; games = []; init(); } }
+        
+        function closeModal() { 
+            document.getElementById('add-player-modal').classList.add('hidden'); 
+            editingPlayerId = null;
+            // Modal butonlarını ve başlığını eski haline getir (Ekleme modu)
+            document.getElementById('modal-title').textContent = "YENİ OYUNCU EKLE";
+            document.getElementById('modal-buttons').innerHTML = `
+                <button onclick="addPlayer('red')" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button>
+                <button onclick="addPlayer('blue')" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>
+            `;
+            document.getElementById('player-name').value = '';
         }
-        function deleteGame(id) { if (confirm('Maç silinsin mi?')) { games = games.filter(g => g.id !== id); localStorage.setItem(GAMES_KEY, JSON.stringify(games)); renderAll(); } }
-        function resetAll() { if (confirm('Her şey silinsin mi?')) { localStorage.clear(); location.reload(); } }
-        function closeModal() { document.getElementById('add-player-modal').classList.add('hidden'); editingPlayerId = null; }
-        function addPlayerModal() { document.getElementById('add-player-modal').classList.remove('hidden'); document.getElementById('player-name').value = ''; }
+
+        function addPlayerModal() { document.getElementById('add-player-modal').classList.remove('hidden'); document.getElementById('player-name').focus(); }
         function closeNewGameModal() { document.getElementById('new-game-modal').classList.add('hidden'); }
-        function cancelActiveGame() { if(confirm('İptal?')) { document.getElementById('active-game').classList.add('hidden'); document.getElementById('btn-new-game').classList.remove('hidden'); currentGame = null; } }
 
         init();
     </script>
