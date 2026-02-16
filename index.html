@@ -126,9 +126,9 @@
 
     <div id="add-player-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
         <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-md text-white">
-            <h3 class="text-2xl font-bold mb-6 italic">YENİ OYUNCU EKLE</h3>
+            <h3 id="modal-title" class="text-2xl font-bold mb-6 italic uppercase">YENİ OYUNCU EKLE</h3>
             <input id="player-name" type="text" placeholder="İsim Soyisim" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-6 py-4 text-lg mb-4 outline-none focus:ring-2 focus:ring-emerald-500">
-            <div class="flex gap-4">
+            <div id="modal-buttons" class="flex gap-4">
                 <button onclick="addPlayer('red')" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button>
                 <button onclick="addPlayer('blue')" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>
             </div>
@@ -173,6 +173,7 @@
         let players = []; let games = []; let currentGame = null;
         let expanded = { daily: false, general: false, red: false, blue: false };
         let openArchives = {}; 
+        let editingPlayerId = null;
 
         function init() {
             const storedPlayers = localStorage.getItem(PLAYERS_KEY);
@@ -281,7 +282,6 @@
             });
         }
 
-        // DÜZENLEME MANTIĞI (YENİ)
         function editGame(gameId) {
             const game = games.find(g => g.id === gameId);
             if(!game) return;
@@ -305,7 +305,44 @@
             }
         }
 
-        // --- DİĞER FONKSİYONLAR ---
+        // --- OYUNCU DÜZENLEME (YENİ) ---
+        function editPlayer(id) {
+            const player = players.find(p => p.id === id);
+            if(!player) return;
+            
+            editingPlayerId = id;
+            document.getElementById('modal-title').textContent = "OYUNCU İSMİNİ DÜZELT";
+            document.getElementById('player-name').value = player.name;
+            
+            // Butonları güncelle butonuyla değiştir
+            document.getElementById('modal-buttons').innerHTML = `
+                <button onclick="updatePlayerName()" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">İSMİ GÜNCELLE</button>
+            `;
+            
+            document.getElementById('add-player-modal').classList.remove('hidden');
+        }
+
+        function updatePlayerName() {
+            const newName = document.getElementById('player-name').value.trim();
+            if(!newName) return;
+            
+            const idx = players.findIndex(p => p.id === editingPlayerId);
+            if(idx !== -1) {
+                players[idx].name = newName;
+                
+                // Geçmiş maçlardaki isimleri de güncelle (Tablo verileri için önemli)
+                games.forEach(g => {
+                    if(g.redId === editingPlayerId) g.redName = newName;
+                    if(g.blueId === editingPlayerId) g.blueName = newName;
+                });
+                
+                localStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
+                localStorage.setItem(GAMES_KEY, JSON.stringify(games));
+                closeModal();
+                renderAll();
+            }
+        }
+
         function renderTeam(team) {
             const topC = document.getElementById(team + '-players-top');
             const extraC = document.getElementById(team + '-extra');
@@ -315,7 +352,12 @@
             teamPlayers.forEach((player, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center justify-between bg-zinc-900/50 border border-zinc-700/30 p-3 rounded-xl`;
-                div.innerHTML = `<div class="font-bold text-sm truncate">${player.name}</div><button onclick="removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button>`;
+                div.innerHTML = `
+                    <div class="font-bold text-sm truncate">${player.name}</div>
+                    <div class="flex gap-3">
+                        <button onclick="editPlayer('${player.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors"><i class="fas fa-edit text-xs"></i></button>
+                        <button onclick="removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button>
+                    </div>`;
                 if (i < 7) topC.appendChild(div); else extraC.appendChild(div);
             });
             if (teamPlayers.length > 7) btn.classList.remove('hidden'); else btn.classList.add('hidden');
@@ -435,7 +477,19 @@
         }
 
         function resetAll() { if (confirm('TÜM VERİLER (Oyuncular dahil) silinecektir. Emin misiniz?')) { localStorage.clear(); players = []; games = []; init(); } }
-        function closeModal() { document.getElementById('add-player-modal').classList.add('hidden'); }
+        
+        function closeModal() { 
+            document.getElementById('add-player-modal').classList.add('hidden'); 
+            editingPlayerId = null;
+            // Modal butonlarını ve başlığını eski haline getir (Ekleme modu)
+            document.getElementById('modal-title').textContent = "YENİ OYUNCU EKLE";
+            document.getElementById('modal-buttons').innerHTML = `
+                <button onclick="addPlayer('red')" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button>
+                <button onclick="addPlayer('blue')" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>
+            `;
+            document.getElementById('player-name').value = '';
+        }
+
         function addPlayerModal() { document.getElementById('add-player-modal').classList.remove('hidden'); document.getElementById('player-name').focus(); }
         function closeNewGameModal() { document.getElementById('new-game-modal').classList.add('hidden'); }
 
