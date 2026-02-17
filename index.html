@@ -24,18 +24,58 @@
     </style>
 </head>
 <body class="bg-zinc-900 text-white min-h-screen">
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="fixed inset-0 bg-zinc-900 flex items-center justify-center z-[9999]">
+        <div class="w-full max-w-md">
+            <div class="text-center mb-8">
+                <i class="fas fa-fire text-5xl text-orange-500 mb-4"></i>
+                <h1 class="text-4xl font-bold tracking-tighter">SURVIVOR ARENA</h1>
+            </div>
+
+            <!-- Admin Login Tab -->
+            <div id="admin-tab" class="hidden">
+                <div class="bg-zinc-800 rounded-3xl p-8 border border-zinc-700">
+                    <h2 class="text-2xl font-bold mb-6 text-center">Admin Paneli</h2>
+                    <input id="admin-username" type="text" placeholder="Kullanıcı Adı" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 mb-4 outline-none focus:ring-2 focus:ring-orange-500">
+                    <input id="admin-password" type="password" placeholder="Şifre" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 mb-6 outline-none focus:ring-2 focus:ring-orange-500">
+                    <button onclick="adminLogin()" class="w-full bg-orange-600 hover:bg-orange-700 py-3 rounded-xl font-bold mb-4">Giriş Yap</button>
+                    <button onclick="switchToViewer()" class="w-full text-zinc-400 hover:text-white text-sm">İzleyici Olarak Devam Et →</button>
+                </div>
+            </div>
+
+            <!-- Viewer Login Tab -->
+            <div id="viewer-tab" class="hidden">
+                <div class="bg-zinc-800 rounded-3xl p-8 border border-zinc-700 text-center">
+                    <h2 class="text-2xl font-bold mb-6">İzleme Modu</h2>
+                    <p class="text-zinc-400 mb-6 text-sm">Maçları ve statistikleri gerçek zamanlı izleyin</p>
+                    <button onclick="viewerLogin()" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold mb-4">
+                        <i class="fas fa-eye"></i> İzlemeye Başla
+                    </button>
+                    <button onclick="switchToAdmin()" class="w-full text-zinc-400 hover:text-white text-sm">Admin Paneline Git ←</button>
+                </div>
+            </div>
+
+            <!-- Tab Selector -->
+            <div class="flex gap-4 mt-6">
+                <button onclick="switchToAdmin()" class="flex-1 py-2 rounded-xl font-bold bg-orange-600 text-white">Admin</button>
+                <button onclick="switchToViewer()" class="flex-1 py-2 rounded-xl font-bold bg-zinc-700 text-zinc-400">İzleyici</button>
+            </div>
+        </div>
+    </div>
+
     <div class="max-w-[1600px] mx-auto p-4 lg:p-8">
         <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
             <div class="flex items-center gap-3">
                 <i class="fas fa-fire text-4xl text-orange-500"></i>
                 <h1 class="text-4xl font-bold tracking-tighter">SURVIVOR ARENA</h1>
             </div>
-            <div class="flex gap-4">
-                <button onclick="addPlayerModal()" class="bg-emerald-600 hover:bg-emerald-700 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
+            <div class="flex gap-4 items-center">
+                <div id="user-info" class="text-xs text-zinc-400"></div>
+                <button onclick="addPlayerModal()" id="btn-add-player" class="bg-emerald-600 hover:bg-emerald-700 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
                     <i class="fas fa-user-plus"></i> Oyuncu Ekle
                 </button>
-                <button onclick="resetAll()" class="bg-zinc-700 hover:bg-zinc-800 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
-                    <i class="fas fa-sync-alt"></i> Sıfırla
+                <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
+                    <i class="fas fa-sign-out-alt"></i> Çıkış
                 </button>
             </div>
         </div>
@@ -81,7 +121,7 @@
                                 <button onclick="selectWinner('red')" class="flex-1 bg-red-600 hover:bg-red-700 py-4 rounded-2xl text-lg font-bold shadow-lg italic">KIRMIZI KAZANDI</button>
                                 <button onclick="selectWinner('blue')" class="flex-1 bg-blue-600 hover:bg-blue-700 py-4 rounded-2xl text-lg font-bold shadow-lg italic">MAVİ KAZANDI</button>
                             </div>
-                            <button onclick="cancelActiveGame()" class="text-zinc-500 hover:text-white text-xs font-bold uppercase py-2">Maçı İptal Et</button>
+                            <button id="btn-cancel-game" onclick="cancelActiveGame()" class="text-zinc-500 hover:text-white text-xs font-bold uppercase py-2">Maçı İptal Et</button>
                         </div>
                     </div>
 
@@ -186,29 +226,218 @@
         </div>
     </div>
 
-    <script>
-        const PLAYERS_KEY = 'survivor_players';
-        const GAMES_KEY = 'survivor_games';
-        let players = []; let games = []; let currentGame = null;
+            <script type="module">
+        import { db, auth, signInWithPopup, googleProvider, signOut } from './firebase-config.js';
+        import { collection, onSnapshot, addDoc, deleteDoc, doc, getDocs, getDoc, writeBatch, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        let players = []; let games = [];
         let expanded = { daily: false, general: false, red: false, blue: false };
         let openArchives = {}; 
         let editingPlayerId = null;
+        let currentUser = { role: null, name: null }; // admin veya viewer
 
-        function init() {
-            const storedPlayers = localStorage.getItem(PLAYERS_KEY);
-            if (storedPlayers) {
-                players = JSON.parse(storedPlayers);
+        let unsubscribePlayers = null;
+        let unsubscribeGames = null;
+        let unsubscribeStatus = null;
+
+        // LOGIN FUNCTIONS
+        async function adminLogin() {
+            const username = document.getElementById('admin-username').value.trim();
+            const password = document.getElementById('admin-password').value.trim();
+            
+            if (!username || !password) return alert('Kullanıcı adı ve şifre gerekli!');
+
+            try {
+                // İlk kez admin oluştur
+                await checkAndAddDefaultAdmin();
+
+                const adminsSnapshot = await getDocs(collection(db, "admins"));
+                const admin = adminsSnapshot.docs.find(doc => doc.data().username === username && doc.data().password === password);
+                
+                if (admin) {
+                    currentUser = { role: 'admin', name: username };
+                    localStorage.setItem('survivor_user', JSON.stringify(currentUser));
+                    showMainApp();
+                } else {
+                    alert('Kullanıcı adı veya şifre yanlış!');
+                }
+            } catch (error) {
+                alert('Giriş hatası: ' + error.message);
+            }
+        }
+
+        async function gmailLogin() {
+            try {
+                const result = await signInWithPopup(auth, googleProvider);
+                currentUser = { role: 'viewer', name: result.user.displayName || result.user.email };
+                localStorage.setItem('survivor_user', JSON.stringify(currentUser));
+                showMainApp();
+            } catch (error) {
+                alert('Gmail girişi başarısız: ' + error.message);
+            }
+        }
+
+        function viewerLogin() {
+            currentUser = { role: 'viewer', name: 'İzleyici' };
+            localStorage.setItem('survivor_user', JSON.stringify(currentUser));
+            showMainApp();
+        }
+
+        function switchToAdmin() {
+            document.getElementById('admin-tab').classList.remove('hidden');
+            document.getElementById('viewer-tab').classList.add('hidden');
+        }
+
+        function switchToViewer() {
+            document.getElementById('admin-tab').classList.add('hidden');
+            document.getElementById('viewer-tab').classList.remove('hidden');
+        }
+
+        async function logout() {
+            if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+                currentUser = { role: null, name: null };
+                localStorage.removeItem('survivor_user');
+                if (unsubscribePlayers) unsubscribePlayers();
+                if (unsubscribeGames) unsubscribeGames();
+                if (unsubscribeStatus) unsubscribeStatus();
+                await signOut(auth);
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('admin-username').value = '';
+                document.getElementById('admin-password').value = '';
+            }
+        }
+
+        function showMainApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            updateUIByRole();
+            init();
+        }
+
+        function updateUIByRole() {
+            const userInfo = document.getElementById('user-info');
+            const addPlayerBtn = document.getElementById('btn-add-player');
+            const newGameBtn = document.getElementById('btn-new-game');
+            const cancelGameBtn = document.getElementById('btn-cancel-game');
+
+            userInfo.textContent = `${currentUser.role === 'admin' ? '👑 Admin' : '👁️ İzleyici'}: ${currentUser.name}`;
+
+            if (currentUser.role === 'admin') {
+                addPlayerBtn.classList.remove('hidden');
+                newGameBtn.classList.remove('hidden');
+                if (cancelGameBtn) cancelGameBtn.classList.remove('hidden');
             } else {
+                addPlayerBtn.classList.add('hidden');
+                newGameBtn.classList.add('hidden');
+                if (cancelGameBtn) cancelGameBtn.classList.add('hidden');
+            }
+
+            // Tüm edit/sil butonlarını gizle
+            setTimeout(() => {
+                document.querySelectorAll('[class*="edit"], [class*="delete"], [class*="trash"], [class*="times"]').forEach(btn => {
+                    if (currentUser.role !== 'admin') {
+                        const parent = btn.closest('.flex');
+                        if (parent && parent.parentElement && parent.parentElement.textContent.includes('edit') || parent.parentElement.textContent.includes('trash')) {
+                            btn.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+                        }
+                    }
+                });
+            }, 100);
+        }
+
+        function checkUserSession() {
+            const saved = localStorage.getItem('survivor_user');
+            if (saved) {
+                currentUser = JSON.parse(saved);
+                showMainApp();
+            }
+        }
+
+        async function init() {
+            if (unsubscribePlayers) unsubscribePlayers();
+            if (unsubscribeGames) unsubscribeGames();
+            if (unsubscribeStatus) unsubscribeStatus();
+
+            await checkAndAddDefaultAdmin();
+
+            const playersSnapshot = await getDocs(collection(db, "players"));
+            players = playersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const werePlayersAdded = await checkAndAddDefaultPlayers();
+            if (werePlayersAdded) {
+                const updatedPlayersSnapshot = await getDocs(collection(db, "players"));
+                players = updatedPlayersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            }
+
+            const gamesSnapshot = await getDocs(collection(db, "games"));
+            games = gamesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            renderAll();
+
+            unsubscribePlayers = onSnapshot(collection(db, "players"), (snapshot) => {
+                players = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAll();
+            });
+
+            unsubscribeGames = onSnapshot(collection(db, "games"), (snapshot) => {
+                games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const lastDate = [...new Set(games.map(g => g.date))].sort((a,b) => b.localeCompare(a))[0];
+                if(lastDate) openArchives[lastDate] = true;
+                renderAll();
+            });
+
+            unsubscribeStatus = onSnapshot(doc(db, "status", "live"), (docSnap) => {
+                const activeGameData = docSnap.data();
+                const activeGameDiv = document.getElementById('active-game');
+                const newGameBtn = document.getElementById('btn-new-game');
+
+                if (activeGameData && activeGameData.redId) {
+                    const rFull = activeGameData.redName2 ? `${activeGameData.redName}<br>${activeGameData.redName2}` : activeGameData.redName;
+                    const bFull = activeGameData.blueName2 ? `${activeGameData.blueName}<br>${activeGameData.blueName2}` : activeGameData.blueName;
+
+                    document.getElementById('red-fighter').innerHTML = `<div class="text-xl font-bold text-red-400 italic">${rFull}</div><div class="text-[9px] text-red-500/50 uppercase font-black mt-1">Kırmızı Takım</div>`;
+                    document.getElementById('blue-fighter').innerHTML = `<div class="text-xl font-bold text-blue-400 italic">${bFull}</div><div class="text-[9px] text-blue-500/50 uppercase font-black mt-1">Mavi Takım</div>`;
+                    
+                    activeGameDiv.classList.remove('hidden');
+                    newGameBtn.classList.add('hidden');
+                } else {
+                    activeGameDiv.classList.add('hidden');
+                    newGameBtn.classList.remove('hidden');
+                }
+            });
+        }
+        
+        async function checkAndAddDefaultPlayers() {
+            if (players.length === 0) {
                 const defaultRed = ["Bayhan Gürhan", "Deniz Çatalbaş", "Mert Nobre", "Murat Arkın", "Seren Ay", "Serhan Onat", "Can Berkay", "Seda Albayrak", "Sercan Yıldırım", "Nefise Karatay", "Büşra Yalçın"];
                 const defaultBlue = ["Beyza Gemici", "Engincan Tura", "Eren Semerci", "Gözde Bozkurt", "Lina Hourieh", "Nisanur Güler", "Onur Alp Çam", "Ramazan Sarı", "Sude Demir", "Osman Can", "Nagihan Karadere"];
-                defaultRed.forEach(name => players.push({ id: 'r-' + Math.random().toString(36).substr(2, 9), name, team: 'red'}));
-                defaultBlue.forEach(name => players.push({ id: 'b-' + Math.random().toString(36).substr(2, 9), name, team: 'blue'}));
-                localStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
+                
+                const batch = writeBatch(db);
+                defaultRed.forEach(name => {
+                    const newPlayerRef = doc(collection(db, "players"));
+                    batch.set(newPlayerRef, { name, team: 'red' });
+                });
+                defaultBlue.forEach(name => {
+                    const newPlayerRef = doc(collection(db, "players"));
+                    batch.set(newPlayerRef, { name, team: 'blue' });
+                });
+                await batch.commit();
+                return true;
             }
-            games = JSON.parse(localStorage.getItem(GAMES_KEY)) || [];
-            const lastDate = [...new Set(games.map(g => g.date))].sort((a,b) => b.localeCompare(a))[0];
-            if(lastDate) openArchives[lastDate] = true;
-            renderAll();
+            return false;
+        }
+
+        async function checkAndAddDefaultAdmin() {
+            try {
+                const adminsSnapshot = await getDocs(collection(db, "admins"));
+                if (adminsSnapshot.size === 0) {
+                    await addDoc(collection(db, "admins"), { 
+                        username: "admin", 
+                        password: "1234" 
+                    });
+                }
+            } catch (e) {
+                console.log('Admin setup:', e.message);
+            }
         }
 
         function renderAll() {
@@ -275,22 +504,24 @@
                         <div class="p-4 pt-0 space-y-3">
                             <div class="h-px bg-zinc-800/50 mb-4"></div>
                             ${[...dayGames].reverse().map(game => {
-                                const isWinnerRed = Array.isArray(game.winnerId) ? players.find(p=>p.id===game.winnerId[0]).team === 'red' : players.find(p=>p.id===game.winnerId).team === 'red';
+                                const winnerP = players.find(p=>p.id=== (Array.isArray(game.winnerId) ? game.winnerId[0] : game.winnerId));
+                                const isWinnerRed = winnerP ? winnerP.team === 'red' : false;
                                 const redDisplayName = game.redName2 ? `${game.redName} & ${game.redName2}` : game.redName;
                                 const blueDisplayName = game.blueName2 ? `${game.blueName} & ${game.blueName2}` : game.blueName;
+                                const editDeleteButtons = currentUser.role === 'admin' ? `<div class="flex gap-3">
+                                                <button onclick="window.editGame('${game.id}')" class="text-zinc-700 hover:text-yellow-500 transition-colors">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button onclick="window.deleteGame('${game.id}')" class="text-zinc-700 hover:text-red-500 transition-colors">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>` : '';
                                 
                                 return `
                                     <div class="bg-zinc-800/30 border border-zinc-800/50 p-3 rounded-xl relative group">
                                         <div class="flex justify-between text-[8px] text-zinc-600 mb-2 font-bold uppercase">
                                             <span>${game.time}</span>
-                                            <div class="flex gap-3">
-                                                <button onclick="editGame('${game.id}')" class="text-zinc-700 hover:text-yellow-500 transition-colors">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button onclick="deleteGame('${game.id}')" class="text-zinc-700 hover:text-red-500 transition-colors">
-                                                    <i class="fas fa-trash-alt"></i>
-                                                </button>
-                                            </div>
+                                            ${editDeleteButtons}
                                         </div>
                                         <div class="flex items-center gap-3">
                                             <div class="flex-1 text-right text-xs font-bold ${isWinnerRed ? 'text-red-400' : 'text-zinc-600'}">${redDisplayName}</div>
@@ -298,7 +529,7 @@
                                             <div class="flex-1 text-left text-xs font-bold ${!isWinnerRed ? 'text-blue-400' : 'text-zinc-600'}">${blueDisplayName}</div>
                                         </div>
                                         <div class="text-center text-[9px] font-black text-emerald-500/80 mt-2 uppercase italic">
-                                            🏆 KAZANAN: ${isWinnerRed ? 'KIRMIZI' : 'MAVİ'}
+                                            🏆 KAZANAN: ${isWinnerRed ? 'KIRMIZI' : 'MAVİ'} ${game.redId2 ? '🚩' : ''}
                                         </div>
                                     </div>
                                 `;
@@ -310,8 +541,8 @@
             });
         }
 
-        // --- Diğer Fonksiyonlar (Aynı tasarım prensibiyle güncellendi) ---
         function startNewGameModal() {
+            if (currentUser.role !== 'admin') return alert('Sadece admin oyun başlatabilir!');
             const redP = players.filter(p => p.team === 'red'); const blueP = players.filter(p => p.team === 'blue');
             if (!redP.length || !blueP.length) return alert('Oyuncu eksik!');
             
@@ -328,18 +559,16 @@
             document.getElementById('new-game-modal').classList.remove('hidden');
         }
 
-        function startGameFromModal() {
+        async function startGameFromModal() {
             const type = document.querySelector('input[name="game-type"]:checked').value;
             const r1Id = document.getElementById('red-select-1').value;
             const b1Id = document.getElementById('blue-select-1').value;
             const r1P = players.find(p => p.id === r1Id);
             const b1P = players.find(p => p.id === b1Id);
 
-            currentGame = { 
+            let newGame = { 
                 redId: r1Id, redName: r1P.name, 
                 blueId: b1Id, blueName: b1P.name, 
-                date: new Date().toLocaleDateString('tr-TR'), 
-                time: new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute: '2-digit'}) 
             };
 
             if(type === "2") {
@@ -348,22 +577,20 @@
                 if(r1Id === r2Id || b1Id === b2Id) return alert("Aynı oyuncuyu iki kez seçemezsiniz!");
                 const r2P = players.find(p => p.id === r2Id);
                 const b2P = players.find(p => p.id === b2Id);
-                currentGame.redId2 = r2Id; currentGame.redName2 = r2P.name;
-                currentGame.blueId2 = b2Id; currentGame.blueName2 = b2P.name;
+                newGame.redId2 = r2Id; newGame.redName2 = r2P.name;
+                newGame.blueId2 = b2Id; newGame.blueName2 = b2P.name;
             }
             
-            document.getElementById('btn-new-game').classList.add('hidden');
-            document.getElementById('active-game').classList.remove('hidden');
-            
-            const rFull = currentGame.redName2 ? `${currentGame.redName}<br>${currentGame.redName2}` : currentGame.redName;
-            const bFull = currentGame.blueName2 ? `${currentGame.blueName}<br>${currentGame.blueName2}` : currentGame.blueName;
-
-            document.getElementById('red-fighter').innerHTML = `<div class="text-xl font-bold text-red-400 italic">${rFull}</div><div class="text-[9px] text-red-500/50 uppercase font-black mt-1">Kırmızı Takım</div>`;
-            document.getElementById('blue-fighter').innerHTML = `<div class="text-xl font-bold text-blue-400 italic">${bFull}</div><div class="text-[9px] text-blue-500/50 uppercase font-black mt-1">Mavi Takım</div>`;
+            await setDoc(doc(db, "status", "live"), newGame);
             closeNewGameModal();
         }
 
-        function selectWinner(winnerTeam) {
+        async function selectWinner(winnerTeam) {
+            if (currentUser.role !== 'admin') return alert('Sadece admin oyuncu seçebilir!');
+            const liveGameDoc = doc(db, "status", "live");
+            const liveGameSnap = await getDoc(liveGameDoc);
+            const currentGame = liveGameSnap.data();
+
             if (!currentGame) return;
             let wId;
             if(currentGame.redId2) {
@@ -372,17 +599,15 @@
                 wId = winnerTeam === 'red' ? currentGame.redId : currentGame.blueId;
             }
 
-            games.push({ ...currentGame, id: Date.now().toString(), winnerId: wId });
-            localStorage.setItem(GAMES_KEY, JSON.stringify(games)); 
-            openArchives[currentGame.date] = true;
-            document.getElementById('active-game').classList.add('win-flash');
-            setTimeout(() => { 
-                document.getElementById('active-game').classList.remove('win-flash'); 
-                document.getElementById('active-game').classList.add('hidden');
-                document.getElementById('btn-new-game').classList.remove('hidden');
-                currentGame = null;
-                renderAll();
-            }, 600);
+            const gameToArchive = {
+                ...currentGame,
+                winnerId: wId,
+                date: new Date().toLocaleDateString('tr-TR'), 
+                time: new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute: '2-digit'}) 
+            };
+
+            await addDoc(collection(db, "games"), gameToArchive);
+            await deleteDoc(liveGameDoc);
         }
 
         function renderScoreboard(type) {
@@ -397,7 +622,10 @@
             
             relevantGames.forEach(g => {
                 const winners = Array.isArray(g.winnerId) ? g.winnerId : [g.winnerId];
-                const isRedWinner = players.find(p=>p.id===winners[0]).team === 'red';
+                const winnerP = players.find(p=>p.id===winners[0]);
+                if (!winnerP) return;
+
+                const isRedWinner = winnerP.team === 'red';
                 const losers = isRedWinner ? [g.blueId, g.blueId2].filter(Boolean) : [g.redId, g.redId2].filter(Boolean);
 
                 winners.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.w++; } });
@@ -414,34 +642,45 @@
             if (sorted.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
         }
 
-        // --- Klasik Yardımcı Fonksiyonlar ---
         function toggleArchive(date) { openArchives[date] = !openArchives[date]; renderArchive(); }
+        
         function editPlayer(id) {
+            if (currentUser.role !== 'admin') return alert('Sadece admin oyuncu düzeltebilir!');
             const player = players.find(p => p.id === id);
             if(!player) return;
             editingPlayerId = id;
             document.getElementById('modal-title').textContent = "DÜZELT";
             document.getElementById('player-name').value = player.name;
-            document.getElementById('modal-buttons').innerHTML = `<button onclick="updatePlayerName()" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">GÜNCELLE</button>`;
+            document.getElementById('modal-buttons').innerHTML = `<button onclick="window.updatePlayerName()" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">GÜNCELLE</button>`;
             document.getElementById('add-player-modal').classList.remove('hidden');
         }
-        function updatePlayerName() {
+        
+        async function updatePlayerName() {
             const newName = document.getElementById('player-name').value.trim();
-            if(!newName) return;
-            const idx = players.findIndex(p => p.id === editingPlayerId);
-            if(idx !== -1) {
-                players[idx].name = newName;
-                games.forEach(g => {
-                    if(g.redId === editingPlayerId) g.redName = newName;
-                    if(g.redId2 === editingPlayerId) g.redName2 = newName;
-                    if(g.blueId === editingPlayerId) g.blueName = newName;
-                    if(g.blueId2 === editingPlayerId) g.blueName2 = newName;
-                });
-                localStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
-                localStorage.setItem(GAMES_KEY, JSON.stringify(games));
-                closeModal(); renderAll();
-            }
+            if(!newName || !editingPlayerId) return;
+            
+            const playerRef = doc(db, "players", editingPlayerId);
+            await updateDoc(playerRef, { name: newName });
+
+            const gamesQuerySnapshot = await getDocs(collection(db, "games"));
+            const batch = writeBatch(db);
+            gamesQuerySnapshot.forEach(gameDoc => {
+                const g = gameDoc.data();
+                let needsUpdate = false;
+                let updateData = {};
+                if(g.redId === editingPlayerId) { needsUpdate = true; updateData.redName = newName; }
+                if(g.redId2 === editingPlayerId) { needsUpdate = true; updateData.redName2 = newName; }
+                if(g.blueId === editingPlayerId) { needsUpdate = true; updateData.blueName = newName; }
+                if(g.blueId2 === editingPlayerId) { needsUpdate = true; updateData.blueName2 = newName; }
+                if(needsUpdate) {
+                    batch.update(doc(db, "games", gameDoc.id), updateData);
+                }
+            });
+            await batch.commit();
+
+            closeModal();
         }
+
         function renderTeam(team) {
             const topC = document.getElementById(team + '-players-top');
             const extraC = document.getElementById(team + '-extra');
@@ -451,36 +690,101 @@
             teamPlayers.forEach((player, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center justify-between bg-zinc-900/50 border border-zinc-700/30 p-3 rounded-xl`;
-                div.innerHTML = `<div class="font-bold text-sm truncate">${player.name}</div><div class="flex gap-3"><button onclick="editPlayer('${player.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors"><i class="fas fa-edit text-xs"></i></button><button onclick="removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button></div>`;
+                const buttonsHTML = currentUser.role === 'admin' ? `<div class="flex gap-3"><button onclick="window.editPlayer('${player.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors"><i class="fas fa-edit text-xs"></i></button><button onclick="window.removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button></div>` : '';
+                div.innerHTML = `<div class="font-bold text-sm truncate">${player.name}</div>${buttonsHTML}`;
                 if (i < 7) topC.appendChild(div); else extraC.appendChild(div);
             });
             if (teamPlayers.length > 7) btn.classList.remove('hidden'); else btn.classList.add('hidden');
         }
-        function cancelActiveGame() { if(confirm('İptal edilsin mi?')) { currentGame = null; document.getElementById('active-game').classList.add('hidden'); document.getElementById('btn-new-game').classList.remove('hidden'); } }
-        function deleteGame(gameId) { if (confirm('Silinsin mi?')) { games = games.filter(g => g.id !== gameId); localStorage.setItem(GAMES_KEY, JSON.stringify(games)); renderAll(); } }
+
+        async function cancelActiveGame() { 
+            if (currentUser.role !== 'admin') return alert('Sadece admin maçı iptal edebilir!');
+            if(confirm('İptal edilsin mi?')) { 
+                await deleteDoc(doc(db, "status", "live"));
+            } 
+        }
+        
+        async function deleteGame(gameId) { 
+            if (currentUser.role !== 'admin') return alert('Sadece admin oyun silebilir!');
+            if (confirm('Silinsin mi?')) { 
+                await deleteDoc(doc(db, "games", gameId));
+            } 
+        }
+
         function toggleSection(type) { expanded[type] = !expanded[type]; const extra = document.getElementById(type + '-extra'); const btn = document.getElementById('btn-' + type); if (expanded[type]) { extra.style.maxHeight = extra.scrollHeight + "px"; btn.textContent = "DAHA AZ"; } else { extra.style.maxHeight = "0"; btn.textContent = "DAHA FAZLA"; } }
-        function addPlayer(team) { const name = document.getElementById('player-name').value.trim(); if (!name) return; players.push({ id: Date.now().toString(), name: name, team: team }); localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); renderAll(); closeModal(); }
-        function removePlayer(id) { if (confirm('Kaldırılsın mı?')) { players = players.filter(p => p.id !== id); localStorage.setItem(PLAYERS_KEY, JSON.stringify(players)); renderAll(); } }
-        function resetAll() { if (confirm('TÜMÜ SİLİNECEK!')) { localStorage.clear(); players = []; games = []; init(); } }
-        function closeModal() { document.getElementById('add-player-modal').classList.add('hidden'); editingPlayerId = null; document.getElementById('modal-title').textContent = "YENİ OYUNCU"; document.getElementById('modal-buttons').innerHTML = `<button onclick="addPlayer('red')" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button><button onclick="addPlayer('blue')" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>`; }
-        function addPlayerModal() { document.getElementById('add-player-modal').classList.remove('hidden'); document.getElementById('player-name').focus(); }
+        
+        async function addPlayer(team) { 
+            if (currentUser.role !== 'admin') return alert('Sadece admin oyuncu ekleyebilir!');
+            const name = document.getElementById('player-name').value.trim(); 
+            if (!name) return; 
+            await addDoc(collection(db, "players"), { name: name, team: team });
+            closeModal(); 
+        }
+        
+        async function removePlayer(id) { 
+            if (currentUser.role !== 'admin') return alert('Sadece admin oyuncu silebilir!');
+            if (confirm('Kaldırılsın mı?')) { 
+                await deleteDoc(doc(db, "players", id));
+            } 
+        }
+        
+        function closeModal() { document.getElementById('add-player-modal').classList.add('hidden'); editingPlayerId = null; document.getElementById('modal-title').textContent = "YENİ OYUNCU"; document.getElementById('modal-buttons').innerHTML = `<button onclick="window.addPlayer('red')" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button><button onclick="window.addPlayer('blue')" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>`; document.getElementById('player-name').value = ''; }
+        function addPlayerModal() { 
+            if (currentUser.role !== 'admin') return alert('Sadece admin oyuncu ekleyebilir!');
+            document.getElementById('add-player-modal').classList.remove('hidden'); 
+            document.getElementById('player-name').focus(); 
+        }
         function closeNewGameModal() { document.getElementById('new-game-modal').classList.add('hidden'); }
+        
         function editGame(gameId) {
             const game = games.find(g => g.id === gameId);
             if(!game) return;
             const modal = document.getElementById('edit-game-modal');
             const info = document.getElementById('edit-info');
-            info.textContent = `${game.redName}${game.redId2?'&'+game.redName2:''} vs ${game.blueName}${game.blueId2?'&'+game.blueName2:''}`;
+            info.textContent = `${game.redName}${game.redId2?' & '+game.redName2:''} vs ${game.blueName}${game.blueId2?' & '+game.blueName2:''}`;
             document.getElementById('edit-win-red').onclick = () => updateGameResult(gameId, game.redId2 ? [game.redId, game.redId2] : game.redId);
             document.getElementById('edit-win-blue').onclick = () => updateGameResult(gameId, game.blueId2 ? [game.blueId, game.blueId2] : game.blueId);
             modal.classList.remove('hidden');
         }
-        function updateGameResult(gameId, newWinnerId) {
-            const idx = games.findIndex(g => g.id === gameId);
-            if(idx !== -1) { games[idx].winnerId = newWinnerId; localStorage.setItem(GAMES_KEY, JSON.stringify(games)); document.getElementById('edit-game-modal').classList.add('hidden'); renderAll(); }
+        
+        async function updateGameResult(gameId, newWinnerId) {
+            const gameRef = doc(db, "games", gameId);
+            await updateDoc(gameRef, { winnerId: newWinnerId });
+            document.getElementById('edit-game-modal').classList.add('hidden'); 
         }
 
-        init();
+        // Make functions globally available for onclick handlers
+        window.addPlayerModal = addPlayerModal;
+        window.toggleSection = toggleSection;
+        window.startNewGameModal = startNewGameModal;
+        window.selectWinner = selectWinner;
+        window.cancelActiveGame = cancelActiveGame;
+        window.addPlayer = addPlayer;
+        window.closeModal = closeModal;
+        window.updateSelectVisibility = updateSelectVisibility;
+        window.startGameFromModal = startGameFromModal;
+        window.closeNewGameModal = closeNewGameModal;
+        window.editGame = editGame;
+        window.deleteGame = deleteGame;
+        window.toggleArchive = toggleArchive;
+        window.editPlayer = editPlayer;
+        window.removePlayer = removePlayer;
+        window.updatePlayerName = updatePlayerName;
+        window.switchToAdmin = switchToAdmin;
+        window.switchToViewer = switchToViewer;
+        window.adminLogin = adminLogin;
+        window.viewerLogin = viewerLogin;
+        window.logout = logout;
+
+        checkUserSession();
     </script>
 </body>
 </html>
+
+        </body>
+
+        </html>
+
+        
+
+    
