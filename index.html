@@ -696,7 +696,8 @@
                 const div = document.createElement('div');
                 div.className = `flex items-center justify-between bg-zinc-900/50 border border-zinc-700/30 p-3 rounded-xl`;
                 const buttonsHTML = currentUser.role === 'admin' ? `<div class="flex gap-3"><button onclick="window.editPlayer('${player.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors"><i class="fas fa-edit text-xs"></i></button><button onclick="window.removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button></div>` : '';
-                div.innerHTML = `<div class="font-bold text-sm truncate">${player.name}</div>${buttonsHTML}`;
+                const displayIndex = i + 1;
+                div.innerHTML = `<div class="font-bold text-sm truncate">${displayIndex}- ${player.name}</div>${buttonsHTML}`;
                 if (i < 7) topC.appendChild(div); else extraC.appendChild(div);
             });
             if (teamPlayers.length > 7) btn.classList.remove('hidden'); else btn.classList.add('hidden');
