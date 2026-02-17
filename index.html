@@ -401,7 +401,12 @@
                     newGameBtn.classList.add('hidden');
                 } else {
                     activeGameDiv.classList.add('hidden');
-                    newGameBtn.classList.remove('hidden');
+                    // Sadece admin kullanıcı yeni oyun başlat düğmesini görebilsin.
+                    if (currentUser && currentUser.role === 'admin') {
+                        newGameBtn.classList.remove('hidden');
+                    } else {
+                        newGameBtn.classList.add('hidden');
+                    }
                 }
             });
         }
