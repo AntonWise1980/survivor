@@ -21,6 +21,11 @@
         .archive-content { transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
         .archive-item.active .chevron { transform: rotate(180deg); }
         .archive-item.active .archive-header { background: #27272a; border-color: #3f3f46; }
+        .player-gender-label { transition: all 0.12s; }
+        .player-gender-label.active { background: #16a34a; color: white; border-color: #15803d; }
+        .player-team-label { transition: all 0.12s; }
+        .player-team-label.player-team-red.active { background: #ef4444; color: white; border-color: #dc2626; }
+        .player-team-label.player-team-blue.active { background: #3b82f6; color: white; border-color: #2563eb; }
     </style>
 </head>
 <body class="bg-zinc-900 text-white min-h-screen">
@@ -182,9 +187,32 @@
         <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-md text-white">
             <h3 id="modal-title" class="text-2xl font-bold mb-6 italic uppercase">YENİ OYUNCU EKLE</h3>
             <input id="player-name" type="text" placeholder="İsim Soyisim" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-6 py-4 text-lg mb-4 outline-none focus:ring-2 focus:ring-emerald-500">
+            <div class="mb-4">
+                <div class="text-xs text-zinc-400 mb-1">Cinsiyet</div>
+                <div class="flex gap-2">
+                    <label class="player-gender-label flex-1 py-3 text-center rounded-2xl bg-zinc-800 border border-zinc-700 cursor-pointer">
+                        <input type="radio" name="player-gender" value="female" checked class="hidden"> Kız
+                    </label>
+                    <label class="player-gender-label flex-1 py-3 text-center rounded-2xl bg-zinc-800 border border-zinc-700 cursor-pointer">
+                        <input type="radio" name="player-gender" value="male" class="hidden"> Erkek
+                    </label>
+                </div>
+            </div>
+            <!-- Takım seçimi: yalnızca düzenleme modunda görünür -->
+            <div id="modal-team-select" class="mb-4 hidden">
+                <div class="text-xs text-zinc-400 mb-1">Takım</div>
+                <div class="flex gap-2">
+                    <label class="player-team-label player-team-red flex-1 py-3 text-center rounded-2xl bg-zinc-800 border border-zinc-700 cursor-pointer">
+                        <input type="radio" name="player-team" value="red" class="hidden"> Kırmızı
+                    </label>
+                    <label class="player-team-label player-team-blue flex-1 py-3 text-center rounded-2xl bg-zinc-800 border border-zinc-700 cursor-pointer">
+                        <input type="radio" name="player-team" value="blue" class="hidden"> Mavi
+                    </label>
+                </div>
+            </div>
             <div id="modal-buttons" class="flex gap-4">
-                <button onclick="addPlayer('red')" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button>
-                <button onclick="addPlayer('blue')" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>
+                <button id="modal-add-red" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button>
+                <button id="modal-add-blue" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>
             </div>
             <button onclick="closeModal()" class="mt-6 w-full text-zinc-500">Vazgeç</button>
         </div>
@@ -441,11 +469,11 @@
                 const batch = writeBatch(db);
                 defaultRed.forEach(name => {
                     const newPlayerRef = doc(collection(db, "players"));
-                    batch.set(newPlayerRef, { name, team: 'red' });
+                    batch.set(newPlayerRef, { name, team: 'red', gender: 'unknown' });
                 });
                 defaultBlue.forEach(name => {
                     const newPlayerRef = doc(collection(db, "players"));
-                    batch.set(newPlayerRef, { name, team: 'blue' });
+                    batch.set(newPlayerRef, { name, team: 'blue', gender: 'unknown' });
                 });
                 await batch.commit();
                 return true;
@@ -733,16 +761,41 @@
             editingPlayerId = id;
             document.getElementById('modal-title').textContent = "DÜZELT";
             document.getElementById('player-name').value = player.name;
-            document.getElementById('modal-buttons').innerHTML = `<button onclick="window.updatePlayerName()" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">GÜNCELLE</button>`;
+            // set gender selection in modal
+            try {
+                const genderVal = player.gender || 'female';
+                document.querySelectorAll('input[name="player-gender"]').forEach(r => r.checked = (r.value === genderVal));
+            } catch(e) {}
+            // show and set team selection for editing
+            try {
+                const teamSel = document.getElementById('modal-team-select');
+                if (teamSel) teamSel.classList.remove('hidden');
+                const teamVal = player.team || 'red';
+                document.querySelectorAll('input[name="player-team"]').forEach(r => r.checked = (r.value === teamVal));
+            } catch(e) {}
+            document.getElementById('modal-buttons').innerHTML = `<button id="modal-update" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">GÜNCELLE</button>`;
+            // attach update listener
+            try { const upd = document.getElementById('modal-update'); if (upd) { upd.onclick = () => updatePlayerName(); } } catch(e) {}
+            // ensure gender/team toggle handlers and visual sync
+            try { attachGenderToggle(); syncGenderUI(); attachTeamToggle(); syncTeamUI(); } catch(e) {}
             document.getElementById('add-player-modal').classList.remove('hidden');
         }
         
         async function updatePlayerName() {
             const newName = document.getElementById('player-name').value.trim();
             if(!newName || !editingPlayerId) return;
-            
+
+            const genderInput = document.querySelector('input[name="player-gender"]:checked');
+            const newGender = genderInput ? genderInput.value : 'female';
+
+            // if team selector is visible, read new team value
+            const teamInput = document.querySelector('input[name="player-team"]:checked');
+            const newTeam = teamInput ? teamInput.value : null;
+
             const playerRef = doc(db, "players", editingPlayerId);
-            await updateDoc(playerRef, { name: newName });
+            const updateObj = { name: newName, gender: newGender };
+            if (newTeam) updateObj.team = newTeam;
+            await updateDoc(playerRef, updateObj);
 
             const gamesQuerySnapshot = await getDocs(collection(db, "games"));
             const batch = writeBatch(db);
@@ -763,7 +816,9 @@
             // Update gidecekler entry if exists
             try {
                 const gRef = doc(db, "gidecekler", editingPlayerId);
-                await setDoc(gRef, { name: newName }, { merge: true });
+                const mergeObj = { name: newName, gender: newGender };
+                if (newTeam) mergeObj.team = newTeam;
+                await setDoc(gRef, mergeObj, { merge: true });
             } catch (e) { /* ignore */ }
 
             closeModal();
@@ -824,7 +879,9 @@
             if (currentUser.role !== 'admin') return alert('Sadece admin oyuncu ekleyebilir!');
             const name = document.getElementById('player-name').value.trim(); 
             if (!name) return; 
-            await addDoc(collection(db, "players"), { name: name, team: team });
+            const genderInput = document.querySelector('input[name="player-gender"]:checked');
+            const gender = genderInput ? genderInput.value : 'female';
+            await addDoc(collection(db, "players"), { name: name, team: team, gender });
             closeModal(); 
         }
         
@@ -837,11 +894,77 @@
             } 
         }
         
-        function closeModal() { document.getElementById('add-player-modal').classList.add('hidden'); editingPlayerId = null; document.getElementById('modal-title').textContent = "YENİ OYUNCU"; document.getElementById('modal-buttons').innerHTML = `<button onclick="window.addPlayer('red')" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button><button onclick="window.addPlayer('blue')" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>`; document.getElementById('player-name').value = ''; }
+        function closeModal() { 
+            document.getElementById('add-player-modal').classList.add('hidden'); 
+            editingPlayerId = null; 
+            document.getElementById('modal-title').textContent = "YENİ OYUNCU"; 
+            // restore default modal buttons (use IDs so listeners can be attached)
+            document.getElementById('modal-buttons').innerHTML = `<button id="modal-add-red" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button><button id="modal-add-blue" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>`; 
+            document.getElementById('player-name').value = ''; 
+            try { document.querySelector('input[name="player-gender"][value="female"]').checked = true; } catch(e) {}
+            try { document.getElementById('modal-team-select').classList.add('hidden'); } catch(e) {}
+            try { syncGenderUI(); } catch(e) {}
+        }
+        
+        // Gender toggle helpers: attach click handlers to label elements and sync visual state
+        function attachGenderToggle() {
+            try {
+                const inputs = Array.from(document.querySelectorAll('input[name="player-gender"]'));
+                inputs.forEach(input => {
+                    const lab = input.closest('label');
+                    if (!lab) return;
+                    // ensure single handler
+                    lab.onclick = (e) => { e.preventDefault(); input.checked = true; syncGenderUI(); };
+                });
+            } catch (e) { }
+        }
+
+        function syncGenderUI() {
+            try {
+                document.querySelectorAll('label.player-gender-label').forEach(l => {
+                    const inp = l.querySelector('input[name="player-gender"]');
+                    if (!inp) return;
+                    if (inp.checked) l.classList.add('active'); else l.classList.remove('active');
+                });
+            } catch (e) {}
+        }
+        
+        // Team toggle helpers
+        function attachTeamToggle() {
+            try {
+                const inputs = Array.from(document.querySelectorAll('input[name="player-team"]'));
+                inputs.forEach(input => {
+                    const lab = input.closest('label');
+                    if (!lab) return;
+                    lab.onclick = (e) => { e.preventDefault(); input.checked = true; syncTeamUI(); };
+                });
+            } catch(e) {}
+        }
+
+        function syncTeamUI() {
+            try {
+                document.querySelectorAll('label.player-team-label').forEach(l => {
+                    const inp = l.querySelector('input[name="player-team"]');
+                    if (!inp) return;
+                    if (inp.checked) l.classList.add('active'); else l.classList.remove('active');
+                });
+            } catch(e) {}
+        }
         function addPlayerModal() { 
             if (currentUser.role !== 'admin') return alert('Sadece admin oyuncu ekleyebilir!');
+            try { document.querySelector('input[name="player-gender"][value="female"]').checked = true; } catch(e) {}
+            try { document.getElementById('modal-team-select').classList.add('hidden'); } catch(e) {}
             document.getElementById('add-player-modal').classList.remove('hidden'); 
             document.getElementById('player-name').focus(); 
+            // attach click listeners to modal add buttons (ensure single assignment)
+            try {
+                const r = document.getElementById('modal-add-red');
+                const b = document.getElementById('modal-add-blue');
+                if (r) { r.onclick = () => addPlayer('red'); }
+                if (b) { b.onclick = () => addPlayer('blue'); }
+            } catch(e) {}
+            // attach gender toggle handlers and sync UI
+            try { attachGenderToggle(); syncGenderUI(); } catch(e) {}
         }
         function closeNewGameModal() { document.getElementById('new-game-modal').classList.add('hidden'); }
         
