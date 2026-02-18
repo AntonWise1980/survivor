@@ -180,6 +180,20 @@
                         <button id="btn-gidecek" onclick="toggleSection('gidecek')" class="hidden w-full mt-3 py-2 bg-zinc-700/30 rounded-xl text-[10px] font-bold text-zinc-400 hover:text-white transition-all">DAHA FAZLA</button>
                     </div>
 
+                    <!-- DÜELLOYA KALANLAR TABLOSU -->
+                    <div class="bg-zinc-800 rounded-3xl p-6 border border-zinc-700/50 h-fit">
+                        <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-violet-400">
+                            <i class="fas fa-crosshairs"></i> DÜELLOYA KALANLAR
+                        </h2>
+                        <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
+                            <div class="flex-1">OYUNCU</div>
+                            <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div>
+                        </div>
+                        <div id="duello-top" class="space-y-2"></div>
+                        <div id="duello-extra" class="extra-content max-h-0 space-y-2 mt-0"></div>
+                        <button id="btn-duello" onclick="toggleSection('duello')" class="hidden w-full mt-3 py-2 bg-zinc-700/30 rounded-xl text-[10px] font-bold text-zinc-400 hover:text-white transition-all">DAHA FAZLA</button>
+                    </div>
+
                     <!-- TAKIM TABLOSU -->
                     <div class="bg-zinc-800 rounded-3xl p-6 border border-zinc-700/50 h-fit">
                         <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-400">
@@ -284,6 +298,7 @@
 
         let players = []; let games = [];
         let gidecekler = [];
+        let duellolar = []; // düelloya kalanlar
         let expanded = { daily: false, general: false, red: false, blue: false };
         let openArchives = {}; 
         let editingPlayerId = null;
@@ -293,6 +308,7 @@
         let unsubscribeGames = null;
         let unsubscribeStatus = null;
         let unsubscribeGidecek = null;
+        let unsubscribeDuello = null;
 
         // LOGIN FUNCTIONS
         async function adminLogin() {
@@ -445,6 +461,12 @@
                 renderAll();
             });
 
+            // Duello (düelloya kalanlar) subscription
+            unsubscribeDuello = onSnapshot(collection(db, "duello"), (snapshot) => {
+                duellolar = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderAll();
+            });
+
             unsubscribeStatus = onSnapshot(doc(db, "status", "live"), (docSnap) => {
                 const activeGameData = docSnap.data();
                 const activeGameDiv = document.getElementById('active-game');
@@ -511,6 +533,7 @@
             renderScoreboard('daily');
             renderScoreboard('general');
             renderGidecekler();
+            renderDuellolar();
             renderTeamStats();
         }
 
@@ -830,6 +853,42 @@ function renderTeamStats() {
             if (filtered.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
         }
 
+        // Render the "Düelloya kalanlar" list (similar behaviour to gidecekler)
+        function renderDuellolar() {
+            const topC = document.getElementById('duello-top');
+            const extraC = document.getElementById('duello-extra');
+            const btn = document.getElementById('btn-duello');
+            if(!topC) return;
+            topC.innerHTML = ''; extraC.innerHTML = '';
+
+            // Build stats for players in duellolar
+            let stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0 }));
+            const relevantGames = games;
+            relevantGames.forEach(g => {
+                const winners = Array.isArray(g.winnerId) ? g.winnerId : [g.winnerId];
+                const winnerP = players.find(p=>p.id===winners[0]);
+                if (!winnerP) return;
+
+                const isRedWinner = winnerP.team === 'red';
+                const losers = isRedWinner ? [g.blueId, g.blueId2].filter(Boolean) : [g.redId, g.redId2].filter(Boolean);
+
+                winners.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.w++; } });
+                losers.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.l++; } });
+            });
+
+            // Only include players that are in duellolar
+            const dIds = duellolar.map(d => d.playerId);
+            const filtered = stats.filter(s => dIds.includes(s.id) && s.m >= 0).sort((a,b) => b.w - a.w || b.m - a.m);
+
+            filtered.forEach((p, i) => {
+                const div = document.createElement('div');
+                div.className = `flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50`;
+                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div>`;
+                if (i < 6) topC.appendChild(div); else extraC.appendChild(div);
+            });
+            if (filtered.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
+        }
+
         function toggleArchive(date) { openArchives[date] = !openArchives[date]; renderArchive(); }
         
         function editPlayer(id) {
@@ -921,11 +980,14 @@ function renderTeamStats() {
                 const div = document.createElement('div');
                 div.className = `flex items-center justify-between bg-zinc-900/50 border border-zinc-700/30 p-3 rounded-xl`;
                 const inG = gidecekler.find(g => g.playerId === player.id);
+                const inD = duellolar.find(d => d.playerId === player.id);
                 let gidecekBtn = '';
+                let duelloBtn = '';
                 if (currentUser.role === 'admin') {
                     gidecekBtn = `<button onclick="window.toggleGidecek('${player.id}')" class="text-zinc-600 hover:text-emerald-400 transition-colors"><i class="${inG ? 'fas fa-check-circle text-emerald-400' : 'fas fa-arrow-right text-zinc-400'} text-xs"></i></button>`;
+                    duelloBtn = `<button onclick="window.toggleDuello('${player.id}')" class="text-zinc-600 hover:text-amber-400 transition-colors"><i class="fas fa-crosshairs ${inD ? 'text-amber-400' : 'text-zinc-400'} text-xs"></i></button>`;
                 }
-                const buttonsHTML = `<div class="flex gap-3">${currentUser.role === 'admin' ? `<button onclick="window.editPlayer('${player.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors"><i class="fas fa-edit text-xs"></i></button><button onclick="window.removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button>` : ''}${gidecekBtn}</div>`;
+                const buttonsHTML = `<div class="flex gap-3">${currentUser.role === 'admin' ? `<button onclick="window.editPlayer('${player.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors"><i class="fas fa-edit text-xs"></i></button><button onclick="window.removePlayer('${player.id}')" class="text-zinc-600 hover:text-red-500 transition-colors"><i class="fas fa-times text-xs"></i></button>` : ''}${gidecekBtn}${duelloBtn}</div>`;
                 const displayIndex = i + 1;
                 div.innerHTML = `<div class="font-bold text-sm truncate">${displayIndex}- ${player.name}</div>${buttonsHTML}`;
                 if (i < 7) topC.appendChild(div); else extraC.appendChild(div);
@@ -951,6 +1013,19 @@ function renderTeamStats() {
         async function toggleGidecek(playerId) {
             const docRef = doc(db, "gidecekler", playerId);
             const existing = gidecekler.find(g => g.playerId === playerId);
+            if (existing) {
+                await deleteDoc(docRef);
+                return;
+            }
+            const p = players.find(x => x.id === playerId);
+            if (!p) return;
+            await setDoc(docRef, { playerId: playerId, name: p.name, team: p.team });
+        }
+
+        // Toggle add/remove player to 'duello' collection (doc id = playerId)
+        async function toggleDuello(playerId) {
+            const docRef = doc(db, "duello", playerId);
+            const existing = duellolar.find(d => d.playerId === playerId);
             if (existing) {
                 await deleteDoc(docRef);
                 return;
@@ -1095,6 +1170,7 @@ function renderTeamStats() {
         window.viewerLogin = viewerLogin;
         window.logout = logout;
         window.toggleGidecek = toggleGidecek;
+        window.toggleDuello = toggleDuello;
 
         checkUserSession();
     </script>
