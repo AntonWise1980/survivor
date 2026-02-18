@@ -257,6 +257,14 @@
                 </label>
             </div>
 
+            <div class="mb-4 text-center">
+                <div class="text-xs text-zinc-400 mb-1">Oyun Kategorisi</div>
+                <select id="game-category" class="w-full max-w-xs bg-zinc-800 p-3 rounded-xl outline-none border border-zinc-700 text-sm mx-auto">
+                    <option value="ÖdülCeza">ÖdülCeza</option>
+                    <option value="Dokunulmazlık">Dokunulmazlık</option>
+                </select>
+            </div>
+
             <div class="space-y-4">
                 <div class="text-red-400 font-bold uppercase text-xs mb-1">Kırmızı Takım</div>
                 <div class="grid grid-cols-1 gap-2">
@@ -690,8 +698,11 @@ function renderTeamStats() {
 
                                 return `
                                     <div class="bg-zinc-800/30 border border-zinc-800/50 p-3 rounded-xl relative group">
-                                        <div class="flex justify-between text-[10px] text-zinc-600 mb-2 font-bold uppercase">
-                                            <span>${game.time}</span>
+                                        <div class="flex justify-between items-center text-[10px] text-zinc-600 mb-2 font-bold uppercase">
+                                            <div class="flex items-center gap-2">
+                                                <span>${game.time}</span>
+                                                <span class="text-[10px] text-zinc-400 bg-zinc-900/40 px-2 py-1 rounded-xl font-medium">${game.category || ''}</span>
+                                            </div>
                                             ${editDeleteButtons}
                                         </div>
                                         <div class="flex items-center gap-3">
@@ -736,6 +747,7 @@ function renderTeamStats() {
 
         async function startGameFromModal() {
             const type = document.querySelector('input[name="game-type"]:checked').value;
+            const category = (document.getElementById('game-category') && document.getElementById('game-category').value) ? document.getElementById('game-category').value : 'ÖdülCeza';
             const r1Id = document.getElementById('red-select-1').value;
             const b1Id = document.getElementById('blue-select-1').value;
             const r1P = players.find(p => p.id === r1Id);
@@ -744,6 +756,7 @@ function renderTeamStats() {
             let newGame = { 
                 redId: r1Id, redName: r1P.name, 
                 blueId: b1Id, blueName: b1P.name, 
+                category: category,
             };
 
             if(type === "2") {
