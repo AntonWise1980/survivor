@@ -830,6 +830,15 @@
             const btn = document.getElementById('btn-' + team);
             topC.innerHTML = ''; extraC.innerHTML = '';
             const teamPlayers = players.filter(p => p.team === team);
+            // sort so that female players appear first, then male, then unknown; tie-breaker by name
+            teamPlayers.sort((a, b) => {
+                const weight = (g) => (g === 'female' ? 0 : (g === 'male' ? 1 : 2));
+                const wa = weight(a.gender || 'unknown');
+                const wb = weight(b.gender || 'unknown');
+                if (wa !== wb) return wa - wb;
+                return (a.name || '').localeCompare(b.name || '');
+            });
+
             teamPlayers.forEach((player, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center justify-between bg-zinc-900/50 border border-zinc-700/30 p-3 rounded-xl`;
