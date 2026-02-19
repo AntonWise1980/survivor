@@ -198,9 +198,14 @@
 
                     <!-- TAKIM TABLOSU -->
                     <div class="bg-zinc-800 rounded-3xl p-6 border border-zinc-700/50 h-fit">
-                        <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-400">
-                            <i class="fas fa-users"></i> TAKIM TABLOSU
-                        </h2>
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold flex items-center gap-2 text-cyan-400">
+                                <i class="fas fa-users"></i> TAKIM TABLOSU
+                            </h2>
+                            <button id="btn-add-team" onclick="addTeamModal()" class="hidden bg-cyan-600 hover:bg-cyan-700 px-3 py-1 rounded-lg text-xs font-bold">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
                         <div id="team-stats" class="space-y-2">
                             <!-- Stats will be rendered here by JavaScript -->
                         </div>
@@ -324,23 +329,55 @@
         </div>
     </div>
 
+    <div id="team-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 text-white">
+        <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-md">
+            <h3 id="team-modal-title" class="text-2xl font-bold mb-6 italic uppercase">YENİ TAKIM EKLE</h3>
+            <input id="team-name" type="text" placeholder="Takım Adı" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-6 py-4 text-lg mb-4 outline-none focus:ring-2 focus:ring-cyan-500">
+            <div class="grid grid-cols-4 gap-2 mb-4">
+                <div>
+                    <label class="text-[10px] text-zinc-500">Maç</label>
+                    <input id="team-m" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div>
+                    <label class="text-[10px] text-zinc-500">Galibiyet</label>
+                    <input id="team-w" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div>
+                    <label class="text-[10px] text-zinc-500">Mağlubiyet</label>
+                    <input id="team-l" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div>
+                    <label class="text-[10px] text-zinc-500">Puan</label>
+                    <input id="team-p" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+            </div>
+            <div id="team-modal-buttons" class="flex gap-4">
+                <button id="team-save" class="flex-1 bg-cyan-600 py-4 rounded-2xl font-bold italic">KAYDET</button>
+            </div>
+            <button onclick="closeTeamModal()" class="mt-6 w-full text-zinc-500">Vazgeç</button>
+        </div>
+    </div>
+
             <script type="module">
         import { db, auth, signInWithPopup, googleProvider, signOut } from './firebase-config.js';
         import { collection, onSnapshot, addDoc, deleteDoc, doc, getDocs, getDoc, writeBatch, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
         let players = []; let games = [];
         let gidecekler = [];
-        let duellolar = []; // düelloya kalanlar
+        let duellolar = [];
+        let teams = [];
         let expanded = { daily: false, general: false, red: false, blue: false };
         let openArchives = {}; 
         let editingPlayerId = null;
-        let currentUser = { role: null, name: null }; // admin veya viewer
+        let editingTeamId = null;
+        let currentUser = { role: null, name: null };
 
         let unsubscribePlayers = null;
         let unsubscribeGames = null;
         let unsubscribeStatus = null;
         let unsubscribeGidecek = null;
         let unsubscribeDuello = null;
+        let unsubscribeTeams = null;
 
         // LOGIN FUNCTIONS
         async function adminLogin() {
@@ -420,6 +457,7 @@
             const addPlayerBtn = document.getElementById('btn-add-player');
             const newGameBtn = document.getElementById('btn-new-game');
             const cancelGameBtn = document.getElementById('btn-cancel-game');
+            const addTeamBtn = document.getElementById('btn-add-team');
 
             if (currentUser.role === 'admin') {
                 userInfo.innerHTML = `<i class="fas fa-user-shield text-orange-500"></i><span>Admin: ${currentUser.name}</span>`;
@@ -431,10 +469,12 @@
                 addPlayerBtn.classList.remove('hidden');
                 newGameBtn.classList.remove('hidden');
                 if (cancelGameBtn) cancelGameBtn.classList.remove('hidden');
+                if (addTeamBtn) addTeamBtn.classList.remove('hidden');
             } else {
                 addPlayerBtn.classList.add('hidden');
                 newGameBtn.classList.add('hidden');
                 if (cancelGameBtn) cancelGameBtn.classList.add('hidden');
+                if (addTeamBtn) addTeamBtn.classList.add('hidden');
             }
 
             setTimeout(() => {
@@ -462,6 +502,7 @@
             if (unsubscribeGames) unsubscribeGames();
             if (unsubscribeStatus) unsubscribeStatus();
             if (unsubscribeGidecek) unsubscribeGidecek();
+            if (unsubscribeTeams) unsubscribeTeams();
 
             await checkAndAddDefaultAdmin();
 
@@ -476,6 +517,10 @@
 
             const gamesSnapshot = await getDocs(collection(db, "games"));
             games = gamesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const teamsSnapshot = await getDocs(collection(db, "teams"));
+            teams = teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            await checkAndAddDefaultTeams();
 
             renderAll();
 
@@ -494,9 +539,13 @@
                 renderAll();
             });
 
-            // Duello (düelloya kalanlar) subscription
             unsubscribeDuello = onSnapshot(collection(db, "duello"), (snapshot) => {
                 duellolar = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderAll();
+            });
+
+            unsubscribeTeams = onSnapshot(collection(db, "teams"), (snapshot) => {
+                teams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderAll();
             });
 
@@ -516,7 +565,6 @@
                     newGameBtn.classList.add('hidden');
                 } else {
                     activeGameDiv.classList.add('hidden');
-                    // Sadece admin kullanıcı yeni oyun başlat düğmesini görebilsin.
                     if (currentUser && currentUser.role === 'admin') {
                         newGameBtn.classList.remove('hidden');
                     } else {
@@ -560,6 +608,17 @@
             }
         }
 
+        async function checkAndAddDefaultTeams() {
+            if (teams.length === 0) {
+                const batch = writeBatch(db);
+                const redTeam = doc(collection(db, "teams"));
+                batch.set(redTeam, { name: 'Kırmızı Takım', m: 44, w: 21, l: 23, p: 21 });
+                const blueTeam = doc(collection(db, "teams"));
+                batch.set(blueTeam, { name: 'Mavi Takım', m: 44, w: 23, l: 21, p: 23 });
+                await batch.commit();
+            }
+        }
+
         function renderAll() {
             renderTeam('red'); renderTeam('blue');
             renderArchive();
@@ -586,71 +645,59 @@ function renderTeamStats() {
     const container = document.getElementById('team-stats');
     if (!container) return;
 
-    let redStats = { name: 'Kırmızı Takım', team: 'red', played: 0, won: 0, lost: 0, points: 0 };
-    let blueStats = { name: 'Mavi Takım', team: 'blue', played: 0, won: 0, lost: 0, points: 0 };
-
-    const groupedByDate = {};
-    games.forEach(game => {
-        if (!groupedByDate[game.date]) {
-            groupedByDate[game.date] = [];
-        }
-        groupedByDate[game.date].push(game);
-    });
-
-    for (const date in groupedByDate) {
-        const dayGames = groupedByDate[date];
-        let redWins = 0;
-        let blueWins = 0;
-
-        dayGames.forEach(game => {
-            const winnerId = Array.isArray(game.winnerId) ? game.winnerId[0] : game.winnerId;
-            const winnerPlayer = players.find(p => p.id === winnerId);
-            if (winnerPlayer) {
-                if (winnerPlayer.team === 'red') {
-                    redWins++;
-                } else {
-                    blueWins++;
-                }
-            }
-        });
-
-        if (redWins > 0 || blueWins > 0) {
-            // day counted as a played day for both teams
-            redStats.played++;
-            blueStats.played++;
-            if (redWins > blueWins) {
-                redStats.won++;
-                blueStats.lost++;
-                // award 1 point to the day's winning team (per requirement)
-                redStats.points++;
-            } else if (blueWins > redWins) {
-                blueStats.won++;
-                redStats.lost++;
-                blueStats.points++;
-            }
-        }
-    }
-
-    const allStats = [redStats, blueStats];
-    allStats.sort((a, b) => b.won - a.won);
+    const sorted = [...teams].sort((a, b) => b.w - a.w);
+    
+    let totalWins = 0;
+    teams.forEach(t => totalWins += t.w);
 
     container.innerHTML = `
         <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
             <div class="flex-1">TAKIM</div>
             <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div><div class="w-7 text-center">P</div>
+            ${currentUser.role === 'admin' ? '<div class="w-16"></div>' : ''}
         </div>
-        ${allStats.map(s => `
+        ${sorted.map(t => `
             <div class="flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50">
                 <div class="flex-1 flex items-center gap-2 min-w-0">
-                    <div class="bg-${s.team}-500 w-3 h-3 rounded-full shrink-0"></div>
-                    <div class="font-bold text-xs truncate">${s.name}</div>
+                    <div class="font-bold text-xs truncate">${t.name}</div>
                 </div>
-                <div class="w-7 text-center text-[11px] font-medium text-zinc-500">${s.played}</div>
-                <div class="w-7 text-center text-[11px] font-black text-emerald-400">${s.won}</div>
-                <div class="w-7 text-center text-[11px] font-medium text-red-400">${s.lost}</div>
-                <div class="w-7 text-center text-[11px] font-black text-emerald-400">${s.points}</div>
+                <div class="w-7 text-center text-[11px] font-medium text-zinc-500">${t.m}</div>
+                <div class="w-7 text-center text-[11px] font-black text-emerald-400">${t.w}</div>
+                <div class="w-7 text-center text-[11px] font-medium text-red-400">${t.l}</div>
+                <div class="w-7 text-center text-[11px] font-black text-emerald-400">${t.p}</div>
+                ${currentUser.role === 'admin' ? `<div class="w-16 flex gap-2 justify-end">
+                    <button onclick="window.editTeam('${t.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors">
+                        <i class="fas fa-edit text-xs"></i>
+                    </button>
+                    <button onclick="window.deleteTeam('${t.id}')" class="text-zinc-600 hover:text-red-500 transition-colors">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+                </div>` : ''}
             </div>
         `).join('')}
+        ${teams.length >= 2 ? `
+            <div class="mt-4 p-4 bg-zinc-900/50 rounded-xl border border-zinc-700/30">
+                <div class="text-[10px] font-bold text-zinc-400 mb-3 uppercase text-center">Güç Karşılaştırması</div>
+                <div class="flex items-center gap-2">
+                    ${sorted.map(t => {
+                        const percentage = totalWins > 0 ? Math.round((t.w / totalWins) * 100) : 0;
+                        const isRed = t.name.toLowerCase().includes('kırmızı');
+                        const isBlue = t.name.toLowerCase().includes('mavi');
+                        const gradient = isRed ? 'from-red-500 to-red-600' : isBlue ? 'from-blue-500 to-blue-600' : 'from-emerald-500 to-emerald-600';
+                        return `
+                            <div class="flex-1">
+                                <div class="text-[10px] font-bold mb-1 truncate">${t.name}</div>
+                                <div class="w-full bg-zinc-800 rounded-full h-6 overflow-hidden">
+                                    <div class="bg-gradient-to-r ${gradient} h-full flex items-center justify-center text-[10px] font-black text-white" style="width: ${percentage}%">
+                                        ${percentage}%
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('<div class="text-zinc-600 font-black text-xs">VS</div>')}}
+                </div>
+            </div>
+        ` : ''}
     `;
 }
 
@@ -848,6 +895,20 @@ function renderTeamStats() {
                     batch.update(doc(db, "players", id), { stats: {m: s.m+1, w: s.w, l: s.l+1, p: s.p} });
                 }
             });
+            
+            const redTeam = teams.find(t => t.name.toLowerCase().includes('kırmızı'));
+            const blueTeam = teams.find(t => t.name.toLowerCase().includes('mavi'));
+            
+            if (redTeam && blueTeam) {
+                if (winnerTeam === 'red') {
+                    batch.update(doc(db, "teams", redTeam.id), { m: redTeam.m + 1, w: redTeam.w + 1, p: redTeam.p + 1 });
+                    batch.update(doc(db, "teams", blueTeam.id), { m: blueTeam.m + 1, l: blueTeam.l + 1 });
+                } else {
+                    batch.update(doc(db, "teams", blueTeam.id), { m: blueTeam.m + 1, w: blueTeam.w + 1, p: blueTeam.p + 1 });
+                    batch.update(doc(db, "teams", redTeam.id), { m: redTeam.m + 1, l: redTeam.l + 1 });
+                }
+            }
+            
             await batch.commit();
             
             await deleteDoc(liveGameDoc);
@@ -1089,6 +1150,19 @@ function renderTeamStats() {
                                 batch.update(doc(db, "players", id), { stats: {m: Math.max(0, s.m-1), w: s.w, l: Math.max(0, s.l-1), p: s.p} });
                             }
                         });
+                        
+                        const redTeam = teams.find(t => t.name.toLowerCase().includes('kırmızı'));
+                        const blueTeam = teams.find(t => t.name.toLowerCase().includes('mavi'));
+                        
+                        if (redTeam && blueTeam) {
+                            if (isRedWinner) {
+                                batch.update(doc(db, "teams", redTeam.id), { m: Math.max(0, redTeam.m - 1), w: Math.max(0, redTeam.w - 1), p: redTeam.p - 1 });
+                                batch.update(doc(db, "teams", blueTeam.id), { m: Math.max(0, blueTeam.m - 1), l: Math.max(0, blueTeam.l - 1) });
+                            } else {
+                                batch.update(doc(db, "teams", blueTeam.id), { m: Math.max(0, blueTeam.m - 1), w: Math.max(0, blueTeam.w - 1), p: blueTeam.p - 1 });
+                                batch.update(doc(db, "teams", redTeam.id), { m: Math.max(0, redTeam.m - 1), l: Math.max(0, redTeam.l - 1) });
+                            }
+                        }
                     }
                     await batch.commit();
                 }
@@ -1234,6 +1308,66 @@ function renderTeamStats() {
             document.getElementById('edit-game-modal').classList.add('hidden'); 
         }
 
+        function addTeamModal() {
+            if (currentUser.role !== 'admin') return alert('Sadece admin takım ekleyebilir!');
+            editingTeamId = null;
+            document.getElementById('team-modal-title').textContent = 'YENİ TAKIM EKLE';
+            document.getElementById('team-name').value = '';
+            document.getElementById('team-m').value = '0';
+            document.getElementById('team-w').value = '0';
+            document.getElementById('team-l').value = '0';
+            document.getElementById('team-p').value = '0';
+            document.getElementById('team-modal-buttons').innerHTML = `<button id="team-save" class="flex-1 bg-cyan-600 py-4 rounded-2xl font-bold italic">KAYDET</button>`;
+            document.getElementById('team-save').onclick = () => saveTeam();
+            document.getElementById('team-modal').classList.remove('hidden');
+        }
+
+        function editTeam(id) {
+            if (currentUser.role !== 'admin') return alert('Sadece admin takım düzeltebilir!');
+            const team = teams.find(t => t.id === id);
+            if (!team) return;
+            editingTeamId = id;
+            document.getElementById('team-modal-title').textContent = 'TAKIMI DÜZELT';
+            document.getElementById('team-name').value = team.name;
+            document.getElementById('team-m').value = team.m || 0;
+            document.getElementById('team-w').value = team.w || 0;
+            document.getElementById('team-l').value = team.l || 0;
+            document.getElementById('team-p').value = team.p || 0;
+            document.getElementById('team-modal-buttons').innerHTML = `<button id="team-save" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">GÜNCELLE</button>`;
+            document.getElementById('team-save').onclick = () => saveTeam();
+            document.getElementById('team-modal').classList.remove('hidden');
+        }
+
+        async function saveTeam() {
+            const name = document.getElementById('team-name').value.trim();
+            if (!name) return alert('Takım adı gerekli!');
+            const teamData = {
+                name,
+                m: parseInt(document.getElementById('team-m').value) || 0,
+                w: parseInt(document.getElementById('team-w').value) || 0,
+                l: parseInt(document.getElementById('team-l').value) || 0,
+                p: parseInt(document.getElementById('team-p').value) || 0
+            };
+            if (editingTeamId) {
+                await updateDoc(doc(db, "teams", editingTeamId), teamData);
+            } else {
+                await addDoc(collection(db, "teams"), teamData);
+            }
+            closeTeamModal();
+        }
+
+        async function deleteTeam(id) {
+            if (currentUser.role !== 'admin') return alert('Sadece admin takım silebilir!');
+            if (confirm('Takım silinsin mi?')) {
+                await deleteDoc(doc(db, "teams", id));
+            }
+        }
+
+        function closeTeamModal() {
+            document.getElementById('team-modal').classList.add('hidden');
+            editingTeamId = null;
+        }
+
         // Make functions globally available for onclick handlers
         window.addPlayerModal = addPlayerModal;
         window.toggleSection = toggleSection;
@@ -1258,6 +1392,10 @@ function renderTeamStats() {
         window.logout = logout;
         window.toggleGidecek = toggleGidecek;
         window.toggleDuello = toggleDuello;
+        window.addTeamModal = addTeamModal;
+        window.editTeam = editTeam;
+        window.deleteTeam = deleteTeam;
+        window.closeTeamModal = closeTeamModal;
 
         checkUserSession();
     </script>
