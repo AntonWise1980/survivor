@@ -333,22 +333,23 @@
         <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 w-full max-w-md">
             <h3 id="team-modal-title" class="text-2xl font-bold mb-6 italic uppercase">YENİ TAKIM EKLE</h3>
             <input id="team-name" type="text" placeholder="Takım Adı" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-6 py-4 text-lg mb-4 outline-none focus:ring-2 focus:ring-cyan-500">
+            <div class="text-xs text-zinc-400 mb-2">Başlangıç Değerleri (Opsiyonel)</div>
             <div class="grid grid-cols-4 gap-2 mb-4">
                 <div>
                     <label class="text-[10px] text-zinc-500">Maç</label>
-                    <input id="team-m" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
+                    <input id="team-base-m" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
                 <div>
                     <label class="text-[10px] text-zinc-500">Galibiyet</label>
-                    <input id="team-w" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
+                    <input id="team-base-w" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
                 <div>
                     <label class="text-[10px] text-zinc-500">Mağlubiyet</label>
-                    <input id="team-l" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
+                    <input id="team-base-l" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
                 <div>
                     <label class="text-[10px] text-zinc-500">Puan</label>
-                    <input id="team-p" type="number" min="0" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
+                    <input id="team-base-p" type="number" value="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
             </div>
             <div id="team-modal-buttons" class="flex gap-4">
@@ -612,9 +613,9 @@
             if (teams.length === 0) {
                 const batch = writeBatch(db);
                 const redTeam = doc(collection(db, "teams"));
-                batch.set(redTeam, { name: 'Kırmızı Takım', m: 44, w: 21, l: 23, p: 21 });
+                batch.set(redTeam, { name: 'Kırmızı Takım', order: 1 });
                 const blueTeam = doc(collection(db, "teams"));
-                batch.set(blueTeam, { name: 'Mavi Takım', m: 44, w: 23, l: 21, p: 23 });
+                batch.set(blueTeam, { name: 'Mavi Takım', order: 2 });
                 await batch.commit();
             }
         }
@@ -645,10 +646,53 @@ function renderTeamStats() {
     const container = document.getElementById('team-stats');
     if (!container) return;
 
-    const sorted = [...teams].sort((a, b) => b.w - a.w);
+    const redTeam = teams.find(t => t.name.toLowerCase().includes('kırmızı'));
+    const blueTeam = teams.find(t => t.name.toLowerCase().includes('mavi'));
     
-    let totalWins = 0;
-    teams.forEach(t => totalWins += t.w);
+    if (!redTeam || !blueTeam) {
+        container.innerHTML = '<div class="text-zinc-600 text-center py-4 text-sm">Takım bulunamadı</div>';
+        return;
+    }
+
+    const groupedByDate = {};
+    games.forEach(game => {
+        if (!groupedByDate[game.date]) groupedByDate[game.date] = [];
+        groupedByDate[game.date].push(game);
+    });
+
+    let redStats = { name: redTeam.name, m: redTeam.baseM || 0, w: redTeam.baseW || 0, l: redTeam.baseL || 0, p: redTeam.baseP || 0 };
+    let blueStats = { name: blueTeam.name, m: blueTeam.baseM || 0, w: blueTeam.baseW || 0, l: blueTeam.baseL || 0, p: blueTeam.baseP || 0 };
+
+    for (const date in groupedByDate) {
+        const dayGames = groupedByDate[date];
+        let redWins = 0, blueWins = 0;
+
+        dayGames.forEach(game => {
+            const winnerId = Array.isArray(game.winnerId) ? game.winnerId[0] : game.winnerId;
+            const winnerPlayer = players.find(p => p.id === winnerId);
+            if (winnerPlayer) {
+                if (winnerPlayer.team === 'red') redWins++;
+                else blueWins++;
+            }
+        });
+
+        if (redWins > 0 || blueWins > 0) {
+            redStats.m++;
+            blueStats.m++;
+            if (redWins > blueWins) {
+                redStats.w++;
+                blueStats.l++;
+                redStats.p++;
+            } else if (blueWins > redWins) {
+                blueStats.w++;
+                redStats.l++;
+                blueStats.p++;
+            }
+        }
+    }
+
+    const allStats = [redStats, blueStats].sort((a, b) => b.w - a.w);
+    let totalWins = redStats.w + blueStats.w;
 
     container.innerHTML = `
         <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
@@ -656,7 +700,9 @@ function renderTeamStats() {
             <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div><div class="w-7 text-center">P</div>
             ${currentUser.role === 'admin' ? '<div class="w-16"></div>' : ''}
         </div>
-        ${sorted.map(t => `
+        ${allStats.map((t, idx) => {
+            const teamId = idx === 0 && allStats[0].name === redTeam.name ? redTeam.id : blueTeam.id;
+            return `
             <div class="flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50">
                 <div class="flex-1 flex items-center gap-2 min-w-0">
                     <div class="font-bold text-xs truncate">${t.name}</div>
@@ -666,20 +712,20 @@ function renderTeamStats() {
                 <div class="w-7 text-center text-[11px] font-medium text-red-400">${t.l}</div>
                 <div class="w-7 text-center text-[11px] font-black text-emerald-400">${t.p}</div>
                 ${currentUser.role === 'admin' ? `<div class="w-16 flex gap-2 justify-end">
-                    <button onclick="window.editTeam('${t.id}')" class="text-zinc-600 hover:text-yellow-500 transition-colors">
+                    <button onclick="window.editTeam('${teamId}')" class="text-zinc-600 hover:text-yellow-500 transition-colors">
                         <i class="fas fa-edit text-xs"></i>
                     </button>
-                    <button onclick="window.deleteTeam('${t.id}')" class="text-zinc-600 hover:text-red-500 transition-colors">
+                    <button onclick="window.deleteTeam('${teamId}')" class="text-zinc-600 hover:text-red-500 transition-colors">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>` : ''}
             </div>
-        `).join('')}
-        ${teams.length >= 2 ? `
+        `}).join('')}
+        ${allStats.length >= 2 ? `
             <div class="mt-4 p-4 bg-zinc-900/50 rounded-xl border border-zinc-700/30">
                 <div class="text-[10px] font-bold text-zinc-400 mb-3 uppercase text-center">Güç Karşılaştırması</div>
                 <div class="flex items-center gap-2">
-                    ${sorted.map(t => {
+                    ${allStats.map(t => {
                         const percentage = totalWins > 0 ? Math.round((t.w / totalWins) * 100) : 0;
                         const isRed = t.name.toLowerCase().includes('kırmızı');
                         const isBlue = t.name.toLowerCase().includes('mavi');
@@ -694,7 +740,7 @@ function renderTeamStats() {
                                 </div>
                             </div>
                         `;
-                    }).join('<div class="text-zinc-600 font-black text-xs">VS</div>')}}
+                    }).join('<div class="text-zinc-600 font-black text-xs">VS</div>')}
                 </div>
             </div>
         ` : ''}
@@ -1321,10 +1367,10 @@ function renderTeamStats() {
             editingTeamId = null;
             document.getElementById('team-modal-title').textContent = 'YENİ TAKIM EKLE';
             document.getElementById('team-name').value = '';
-            document.getElementById('team-m').value = '0';
-            document.getElementById('team-w').value = '0';
-            document.getElementById('team-l').value = '0';
-            document.getElementById('team-p').value = '0';
+            document.getElementById('team-base-m').value = '0';
+            document.getElementById('team-base-w').value = '0';
+            document.getElementById('team-base-l').value = '0';
+            document.getElementById('team-base-p').value = '0';
             document.getElementById('team-modal-buttons').innerHTML = `<button id="team-save" class="flex-1 bg-cyan-600 py-4 rounded-2xl font-bold italic">KAYDET</button>`;
             document.getElementById('team-save').onclick = () => saveTeam();
             document.getElementById('team-modal').classList.remove('hidden');
@@ -1337,10 +1383,10 @@ function renderTeamStats() {
             editingTeamId = id;
             document.getElementById('team-modal-title').textContent = 'TAKIMI DÜZELT';
             document.getElementById('team-name').value = team.name;
-            document.getElementById('team-m').value = team.m || 0;
-            document.getElementById('team-w').value = team.w || 0;
-            document.getElementById('team-l').value = team.l || 0;
-            document.getElementById('team-p').value = team.p || 0;
+            document.getElementById('team-base-m').value = team.baseM || 0;
+            document.getElementById('team-base-w').value = team.baseW || 0;
+            document.getElementById('team-base-l').value = team.baseL || 0;
+            document.getElementById('team-base-p').value = team.baseP || 0;
             document.getElementById('team-modal-buttons').innerHTML = `<button id="team-save" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">GÜNCELLE</button>`;
             document.getElementById('team-save').onclick = () => saveTeam();
             document.getElementById('team-modal').classList.remove('hidden');
@@ -1351,10 +1397,10 @@ function renderTeamStats() {
             if (!name) return alert('Takım adı gerekli!');
             const teamData = {
                 name,
-                m: parseInt(document.getElementById('team-m').value) || 0,
-                w: parseInt(document.getElementById('team-w').value) || 0,
-                l: parseInt(document.getElementById('team-l').value) || 0,
-                p: parseInt(document.getElementById('team-p').value) || 0
+                baseM: parseInt(document.getElementById('team-base-m').value) || 0,
+                baseW: parseInt(document.getElementById('team-base-w').value) || 0,
+                baseL: parseInt(document.getElementById('team-base-l').value) || 0,
+                baseP: parseInt(document.getElementById('team-base-p').value) || 0
             };
             if (editingTeamId) {
                 await updateDoc(doc(db, "teams", editingTeamId), teamData);
