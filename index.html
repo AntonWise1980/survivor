@@ -146,7 +146,7 @@
                     </h2>
                     <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
                         <div class="flex-1">OYUNCU</div>
-                        <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div>
+                        <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div><div class="w-7 text-center">P</div>
                     </div>
                     <div id="daily-scoreboard-top" class="space-y-2"></div>
                     <div id="daily-extra" class="extra-content max-h-0 space-y-2 mt-0"></div>
@@ -159,7 +159,7 @@
                     </h2>
                     <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
                         <div class="flex-1">OYUNCU</div>
-                        <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div>
+                        <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div><div class="w-7 text-center">P</div>
                     </div>
                     <div id="general-scoreboard-top" class="space-y-2"></div>
                     <div id="general-extra" class="extra-content max-h-0 space-y-2 mt-0"></div>
@@ -173,7 +173,7 @@
                         </h2>
                         <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
                             <div class="flex-1">OYUNCU</div>
-                            <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div>
+                            <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div><div class="w-7 text-center">P</div>
                         </div>
                         <div id="gidecek-top" class="space-y-2"></div>
                         <div id="gidecek-extra" class="extra-content max-h-0 space-y-2 mt-0"></div>
@@ -187,7 +187,7 @@
                         </h2>
                         <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
                             <div class="flex-1">OYUNCU</div>
-                            <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div>
+                            <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div><div class="w-7 text-center">P</div>
                         </div>
                         <div id="duello-top" class="space-y-2"></div>
                         <div id="duello-extra" class="extra-content max-h-0 space-y-2 mt-0"></div>
@@ -561,8 +561,8 @@ function renderTeamStats() {
     const container = document.getElementById('team-stats');
     if (!container) return;
 
-    let redStats = { name: 'Kırmızı Takım', team: 'red', played: 0, won: 0, lost: 0 };
-    let blueStats = { name: 'Mavi Takım', team: 'blue', played: 0, won: 0, lost: 0 };
+    let redStats = { name: 'Kırmızı Takım', team: 'red', played: 0, won: 0, lost: 0, points: 0 };
+    let blueStats = { name: 'Mavi Takım', team: 'blue', played: 0, won: 0, lost: 0, points: 0 };
 
     const groupedByDate = {};
     games.forEach(game => {
@@ -590,14 +590,18 @@ function renderTeamStats() {
         });
 
         if (redWins > 0 || blueWins > 0) {
+            // day counted as a played day for both teams
             redStats.played++;
             blueStats.played++;
             if (redWins > blueWins) {
                 redStats.won++;
                 blueStats.lost++;
+                // award 1 point to the day's winning team (per requirement)
+                redStats.points++;
             } else if (blueWins > redWins) {
                 blueStats.won++;
                 redStats.lost++;
+                blueStats.points++;
             }
         }
     }
@@ -608,7 +612,7 @@ function renderTeamStats() {
     container.innerHTML = `
         <div class="flex text-[10px] font-black text-zinc-500 uppercase px-4 mb-2">
             <div class="flex-1">TAKIM</div>
-            <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div>
+            <div class="w-7 text-center">M</div><div class="w-7 text-center">G</div><div class="w-7 text-center">M</div><div class="w-7 text-center">P</div>
         </div>
         ${allStats.map(s => `
             <div class="flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50">
@@ -619,6 +623,7 @@ function renderTeamStats() {
                 <div class="w-7 text-center text-[11px] font-medium text-zinc-500">${s.played}</div>
                 <div class="w-7 text-center text-[11px] font-black text-emerald-400">${s.won}</div>
                 <div class="w-7 text-center text-[11px] font-medium text-red-400">${s.lost}</div>
+                <div class="w-7 text-center text-[11px] font-black text-emerald-400">${s.points}</div>
             </div>
         `).join('')}
     `;
@@ -824,11 +829,23 @@ function renderTeamStats() {
                 losers.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.l++; } });
             });
 
-            const sorted = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || b.m - a.m);
+            // For daily view keep existing tie-break (more matches first),
+            // for general view prefer fewer losses as the tie-break so
+            // players with more losses appear lower in the list.
+            let sorted;
+            if (type === 'daily') {
+                sorted = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || b.m - a.m);
+            } else {
+                sorted = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || a.l - b.l);
+            }
             sorted.forEach((p, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50`;
-                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div>`;
+                if (type === 'daily') {
+                    div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div>`;
+                } else {
+                    div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div>`;
+                }
                 if (i < 6) topC.appendChild(div); else extraC.appendChild(div);
             });
             if (sorted.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
@@ -858,12 +875,12 @@ function renderTeamStats() {
 
             // Only include players that are in gidecekler
             const gIds = gidecekler.map(g => g.playerId);
-            const filtered = stats.filter(s => gIds.includes(s.id) && s.m >= 0).sort((a,b) => b.w - a.w || b.m - a.m);
+            const filtered = stats.filter(s => gIds.includes(s.id) && s.m >= 0).sort((a,b) => b.w - a.w || a.l - b.l);
 
             filtered.forEach((p, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50`;
-                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div>`;
+                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div>`;
                 if (i < 6) topC.appendChild(div); else extraC.appendChild(div);
             });
             if (filtered.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
@@ -894,12 +911,12 @@ function renderTeamStats() {
 
             // Only include players that are in duellolar
             const dIds = duellolar.map(d => d.playerId);
-            const filtered = stats.filter(s => dIds.includes(s.id) && s.m >= 0).sort((a,b) => b.w - a.w || b.m - a.m);
+            const filtered = stats.filter(s => dIds.includes(s.id) && s.m >= 0).sort((a,b) => b.w - a.w || a.l - b.l);
 
             filtered.forEach((p, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50`;
-                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div>`;
+                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div>`;
                 if (i < 6) topC.appendChild(div); else extraC.appendChild(div);
             });
             if (filtered.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
