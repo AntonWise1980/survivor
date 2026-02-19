@@ -74,13 +74,15 @@
                 <i class="fas fa-fire text-4xl text-orange-500"></i>
                 <h1 class="text-4xl font-bold tracking-tighter">SURVIVOR ARENA</h1>
             </div>
-            <div class="flex gap-4 items-center">
-                <div id="user-info" class="text-xs text-zinc-400"></div>
-                <button onclick="addPlayerModal()" id="btn-add-player" class="bg-emerald-600 hover:bg-emerald-700 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
-                    <i class="fas fa-user-plus"></i> Oyuncu Ekle
+            <div class="flex gap-3 items-center">
+                <div id="user-info" class="text-xs text-zinc-400 flex items-center gap-2"></div>
+                <button onclick="addPlayerModal()" id="btn-add-player" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm">
+                    <i class="fas fa-user-plus text-sm"></i>
+                    <span class="hidden sm:inline">Oyuncu Ekle</span>
                 </button>
-                <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
-                    <i class="fas fa-sign-out-alt"></i> Çıkış
+                <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm">
+                    <i class="fas fa-sign-out-alt text-sm"></i>
+                    <span class="hidden sm:inline">Çıkış</span>
                 </button>
             </div>
         </div>
@@ -419,7 +421,11 @@
             const newGameBtn = document.getElementById('btn-new-game');
             const cancelGameBtn = document.getElementById('btn-cancel-game');
 
-            userInfo.textContent = `${currentUser.role === 'admin' ? '👑 Admin' : '👁️ İzleyici'}: ${currentUser.name}`;
+            if (currentUser.role === 'admin') {
+                userInfo.innerHTML = `<i class="fas fa-user-shield text-orange-500"></i><span>Admin: ${currentUser.name}</span>`;
+            } else {
+                userInfo.innerHTML = `<i class="fas fa-eye text-blue-500"></i><span>İzleyici: ${currentUser.name}</span>`;
+            }
 
             if (currentUser.role === 'admin') {
                 addPlayerBtn.classList.remove('hidden');
@@ -431,7 +437,6 @@
                 if (cancelGameBtn) cancelGameBtn.classList.add('hidden');
             }
 
-            // Tüm edit/sil butonlarını gizle
             setTimeout(() => {
                 document.querySelectorAll('[class*="edit"], [class*="delete"], [class*="trash"], [class*="times"]').forEach(btn => {
                     if (currentUser.role !== 'admin') {
