@@ -888,7 +888,7 @@ function renderTeamStats() {
                 stats = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || b.m - a.m);
             } else {
                 stats = players.map(p => ({ ...p, m: (p.stats?.m || 0), w: (p.stats?.w || 0), l: (p.stats?.l || 0), p: (p.stats?.p || 0) }));
-                stats = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || a.l - b.l);
+                stats = stats.filter(s => s.m > 0).sort((a, b) => b.p - a.p || b.w - a.w);
             }
             
             stats.forEach((p, i) => {
@@ -1062,7 +1062,33 @@ function renderTeamStats() {
         
         async function deleteGame(gameId) { 
             if (currentUser.role !== 'admin') return alert('Sadece admin oyun silebilir!');
-            if (confirm('Silinsin mi?')) { 
+            if (confirm('Silinsin mi?')) {
+                const game = games.find(g => g.id === gameId);
+                if (game) {
+                    const batch = writeBatch(db);
+                    const winners = Array.isArray(game.winnerId) ? game.winnerId : [game.winnerId];
+                    const winnerP = players.find(p => p.id === winners[0]);
+                    if (winnerP) {
+                        const isRedWinner = winnerP.team === 'red';
+                        const losers = isRedWinner ? [game.blueId, game.blueId2].filter(Boolean) : [game.redId, game.redId2].filter(Boolean);
+                        
+                        winners.forEach(id => {
+                            const p = players.find(x => x.id === id);
+                            if(p && p.stats) {
+                                const s = p.stats;
+                                batch.update(doc(db, "players", id), { stats: {m: Math.max(0, s.m-1), w: Math.max(0, s.w-1), l: s.l, p: s.p-1} });
+                            }
+                        });
+                        losers.forEach(id => {
+                            const p = players.find(x => x.id === id);
+                            if(p && p.stats) {
+                                const s = p.stats;
+                                batch.update(doc(db, "players", id), { stats: {m: Math.max(0, s.m-1), w: s.w, l: Math.max(0, s.l-1), p: s.p} });
+                            }
+                        });
+                    }
+                    await batch.commit();
+                }
                 await deleteDoc(doc(db, "games", gameId));
             } 
         }
