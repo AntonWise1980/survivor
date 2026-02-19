@@ -234,6 +234,28 @@
                     </label>
                 </div>
             </div>
+            <!-- İstatistikler: yalnızca düzenleme modunda görünür -->
+            <div id="modal-stats" class="mb-4 hidden">
+                <div class="text-xs text-zinc-400 mb-2">İstatistikler</div>
+                <div class="grid grid-cols-4 gap-2">
+                    <div>
+                        <label class="text-[10px] text-zinc-500">Maç</label>
+                        <input id="stat-m" type="number" min="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-zinc-500">Galibiyet</label>
+                        <input id="stat-w" type="number" min="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-zinc-500">Mağlubiyet</label>
+                        <input id="stat-l" type="number" min="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-zinc-500">Puan</label>
+                        <input id="stat-p" type="number" min="0" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+            </div>
             <div id="modal-buttons" class="flex gap-4">
                 <button id="modal-add-red" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button>
                 <button id="modal-add-blue" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>
@@ -503,17 +525,17 @@
         
         async function checkAndAddDefaultPlayers() {
             if (players.length === 0) {
-                const defaultRed = ["Bayhan Gürhan", "Deniz Çatalbaş", "Mert Nobre", "Murat Arkın", "Seren Ay", "Serhan Onat", "Can Berkay", "Seda Albayrak", "Sercan Yıldırım", "Nefise Karatay", "Büşra Yalçın"];
-                const defaultBlue = ["Beyza Gemici", "Engincan Tura", "Eren Semerci", "Gözde Bozkurt", "Lina Hourieh", "Nisanur Güler", "Onur Alp Çam", "Ramazan Sarı", "Sude Demir", "Osman Can", "Nagihan Karadere"];
+                const defaultRed = ["Büşra Yalçın", "Deniz Çatalbaş", "Nefise Karatay", "Seda Albayrak", "Seren Ay", "Bayhan Gürhan", "Can Berkay", "Mert Nobre", "Murat Arkın", "Sercan Yıldırım", "Serhan Onat"];
+                const defaultBlue = ["Beyza Gemici", "Gözde Bozkurt", "Lina Hourieh", "Nagihan Karadere", "Nisanur Güler", "Sude Demir", "Engincan Tura", "Eren Semerci", "Onur Alp Çam", "Osman Can", "Ramazan Sarı"];
                 
                 const batch = writeBatch(db);
                 defaultRed.forEach(name => {
                     const newPlayerRef = doc(collection(db, "players"));
-                    batch.set(newPlayerRef, { name, team: 'red', gender: 'unknown' });
+                    batch.set(newPlayerRef, { name, team: 'red', gender: 'unknown', stats: {m:0, w:0, l:0, p:0} });
                 });
                 defaultBlue.forEach(name => {
                     const newPlayerRef = doc(collection(db, "players"));
-                    batch.set(newPlayerRef, { name, team: 'blue', gender: 'unknown' });
+                    batch.set(newPlayerRef, { name, team: 'blue', gender: 'unknown', stats: {m:0, w:0, l:0, p:0} });
                 });
                 await batch.commit();
                 return true;
@@ -804,6 +826,27 @@ function renderTeamStats() {
             };
 
             await addDoc(collection(db, "games"), gameToArchive);
+            
+            const batch = writeBatch(db);
+            const winners = Array.isArray(wId) ? wId : [wId];
+            const losers = winnerTeam === 'red' ? [currentGame.blueId, currentGame.blueId2].filter(Boolean) : [currentGame.redId, currentGame.redId2].filter(Boolean);
+            
+            winners.forEach(id => {
+                const p = players.find(x => x.id === id);
+                if(p) {
+                    const s = p.stats || {m:0, w:0, l:0, p:0};
+                    batch.update(doc(db, "players", id), { stats: {m: s.m+1, w: s.w+1, l: s.l, p: s.p+1} });
+                }
+            });
+            losers.forEach(id => {
+                const p = players.find(x => x.id === id);
+                if(p) {
+                    const s = p.stats || {m:0, w:0, l:0, p:0};
+                    batch.update(doc(db, "players", id), { stats: {m: s.m+1, w: s.w, l: s.l+1, p: s.p} });
+                }
+            });
+            await batch.commit();
+            
             await deleteDoc(liveGameDoc);
         }
 
@@ -813,63 +856,48 @@ function renderTeamStats() {
             const btn = document.getElementById('btn-' + type);
             topC.innerHTML = ''; extraC.innerHTML = '';
             
-            let stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0 }));
-            const today = new Date().toLocaleDateString('tr-TR');
-            // helper to get a timestamp for a game (prefer explicit timestamp, then parse date+time)
-            const getGameTs = (g) => {
-                if (g.timestamp) return Number(g.timestamp);
-                try {
-                    if (g.date && g.time) {
-                        const [d,m,y] = g.date.split('.').map(s=>s.trim());
-                        const [hh,mm] = g.time.split(':').map(s=>s.trim());
-                        return new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T${hh.padStart(2,'0')}:${mm.padStart(2,'0')}:00`).getTime();
-                    }
-                    if (g.date) {
-                        const [d,m,y] = g.date.split('.').map(s=>s.trim());
-                        return new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`).getTime();
-                    }
-                } catch(e) {}
-                return 0;
-            };
-
-            const relevantGames = (type === 'daily') ? games.filter(g => {
-                const ts = getGameTs(g);
-                if (!ts) return false;
-                return new Date(ts).toLocaleDateString('tr-TR') === today;
-            }) : games;
-            
-            relevantGames.forEach(g => {
-                const winners = Array.isArray(g.winnerId) ? g.winnerId : [g.winnerId];
-                const winnerP = players.find(p=>p.id===winners[0]);
-                if (!winnerP) return;
-
-                const isRedWinner = winnerP.team === 'red';
-                const losers = isRedWinner ? [g.blueId, g.blueId2].filter(Boolean) : [g.redId, g.redId2].filter(Boolean);
-
-                winners.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.w++; } });
-                losers.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.l++; } });
-            });
-
-            // For daily view keep existing tie-break (more matches first),
-            // for general view prefer fewer losses as the tie-break so
-            // players with more losses appear lower in the list.
-            let sorted;
+            let stats;
             if (type === 'daily') {
-                sorted = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || b.m - a.m);
+                stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0, p: 0 }));
+                const today = new Date().toLocaleDateString('tr-TR');
+                const getGameTs = (g) => {
+                    if (g.timestamp) return Number(g.timestamp);
+                    try {
+                        if (g.date && g.time) {
+                            const [d,m,y] = g.date.split('.').map(s=>s.trim());
+                            const [hh,mm] = g.time.split(':').map(s=>s.trim());
+                            return new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T${hh.padStart(2,'0')}:${mm.padStart(2,'0')}:00`).getTime();
+                        }
+                    } catch(e) {}
+                    return 0;
+                };
+                const relevantGames = games.filter(g => {
+                    const ts = getGameTs(g);
+                    if (!ts) return false;
+                    return new Date(ts).toLocaleDateString('tr-TR') === today;
+                });
+                relevantGames.forEach(g => {
+                    const winners = Array.isArray(g.winnerId) ? g.winnerId : [g.winnerId];
+                    const winnerP = players.find(p=>p.id===winners[0]);
+                    if (!winnerP) return;
+                    const isRedWinner = winnerP.team === 'red';
+                    const losers = isRedWinner ? [g.blueId, g.blueId2].filter(Boolean) : [g.redId, g.redId2].filter(Boolean);
+                    winners.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.w++; s.p++; } });
+                    losers.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.l++; } });
+                });
+                stats = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || b.m - a.m);
             } else {
-                sorted = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || a.l - b.l);
+                stats = players.map(p => ({ ...p, m: (p.stats?.m || 0), w: (p.stats?.w || 0), l: (p.stats?.l || 0), p: (p.stats?.p || 0) }));
+                stats = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || a.l - b.l);
             }
-            sorted.forEach((p, i) => {
+            
+            stats.forEach((p, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50`;
-                if (type === 'daily') {
-                    div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div>`;
-                } else {
-                    div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div>`;
-                }
+                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.p}</div>`;
                 if (i < 6) topC.appendChild(div); else extraC.appendChild(div);
             });
-            if (sorted.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
+            if (stats.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
         }
 
         function renderGidecekler() {
@@ -879,35 +907,18 @@ function renderTeamStats() {
             if(!topC) return;
             topC.innerHTML = ''; extraC.innerHTML = '';
 
-            // Build stats for players in gidecekler
-            let stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0 }));
-            const relevantGames = games; // overall stats like general
-            relevantGames.forEach(g => {
-                const winners = Array.isArray(g.winnerId) ? g.winnerId : [g.winnerId];
-                const winnerP = players.find(p=>p.id===winners[0]);
-                if (!winnerP) return;
-
-                const isRedWinner = winnerP.team === 'red';
-                const losers = isRedWinner ? [g.blueId, g.blueId2].filter(Boolean) : [g.redId, g.redId2].filter(Boolean);
-
-                winners.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.w++; } });
-                losers.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.l++; } });
-            });
-
-            // Only include players that are in gidecekler
             const gIds = gidecekler.map(g => g.playerId);
-            const filtered = stats.filter(s => gIds.includes(s.id) && s.m >= 0).sort((a,b) => b.w - a.w || a.l - b.l);
+            const filtered = players.filter(p => gIds.includes(p.id)).map(p => ({ ...p, m: (p.stats?.m || 0), w: (p.stats?.w || 0), l: (p.stats?.l || 0), p: (p.stats?.p || 0) })).sort((a,b) => b.w - a.w || a.l - b.l);
 
             filtered.forEach((p, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50`;
-                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div>`;
+                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.p}</div>`;
                 if (i < 6) topC.appendChild(div); else extraC.appendChild(div);
             });
             if (filtered.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
         }
 
-        // Render the "Düelloya kalanlar" list (similar behaviour to gidecekler)
         function renderDuellolar() {
             const topC = document.getElementById('duello-top');
             const extraC = document.getElementById('duello-extra');
@@ -915,29 +926,13 @@ function renderTeamStats() {
             if(!topC) return;
             topC.innerHTML = ''; extraC.innerHTML = '';
 
-            // Build stats for players in duellolar
-            let stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0 }));
-            const relevantGames = games;
-            relevantGames.forEach(g => {
-                const winners = Array.isArray(g.winnerId) ? g.winnerId : [g.winnerId];
-                const winnerP = players.find(p=>p.id===winners[0]);
-                if (!winnerP) return;
-
-                const isRedWinner = winnerP.team === 'red';
-                const losers = isRedWinner ? [g.blueId, g.blueId2].filter(Boolean) : [g.redId, g.redId2].filter(Boolean);
-
-                winners.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.w++; } });
-                losers.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.l++; } });
-            });
-
-            // Only include players that are in duellolar
             const dIds = duellolar.map(d => d.playerId);
-            const filtered = stats.filter(s => dIds.includes(s.id) && s.m >= 0).sort((a,b) => b.w - a.w || a.l - b.l);
+            const filtered = players.filter(p => dIds.includes(p.id)).map(p => ({ ...p, m: (p.stats?.m || 0), w: (p.stats?.w || 0), l: (p.stats?.l || 0), p: (p.stats?.p || 0) })).sort((a,b) => b.w - a.w || a.l - b.l);
 
             filtered.forEach((p, i) => {
                 const div = document.createElement('div');
                 div.className = `flex items-center bg-zinc-900 p-3 rounded-xl border border-zinc-700/50`;
-                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div>`;
+                div.innerHTML = `<div class="flex-1 flex items-center gap-2 min-w-0"><div class="${p.team === 'red' ? 'bg-red-500' : 'bg-blue-500'} w-3 h-3 rounded-full shrink-0"></div><div class="font-bold text-xs truncate">${p.name}</div></div><div class="w-7 text-center text-[11px] font-medium text-zinc-500">${p.m}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.w}</div><div class="w-7 text-center text-[11px] font-medium text-red-400">${p.l}</div><div class="w-7 text-center text-[11px] font-black text-emerald-400">${p.p}</div>`;
                 if (i < 6) topC.appendChild(div); else extraC.appendChild(div);
             });
             if (filtered.length > 6) btn.classList.remove('hidden'); else btn.classList.add('hidden');
@@ -952,22 +947,27 @@ function renderTeamStats() {
             editingPlayerId = id;
             document.getElementById('modal-title').textContent = "DÜZELT";
             document.getElementById('player-name').value = player.name;
-            // set gender selection in modal
             try {
                 const genderVal = player.gender || 'female';
                 document.querySelectorAll('input[name="player-gender"]').forEach(r => r.checked = (r.value === genderVal));
             } catch(e) {}
-            // show and set team selection for editing
             try {
                 const teamSel = document.getElementById('modal-team-select');
                 if (teamSel) teamSel.classList.remove('hidden');
                 const teamVal = player.team || 'red';
                 document.querySelectorAll('input[name="player-team"]').forEach(r => r.checked = (r.value === teamVal));
             } catch(e) {}
+            try {
+                const statsSel = document.getElementById('modal-stats');
+                if (statsSel) statsSel.classList.remove('hidden');
+                const s = player.stats || {m:0, w:0, l:0, p:0};
+                document.getElementById('stat-m').value = s.m || 0;
+                document.getElementById('stat-w').value = s.w || 0;
+                document.getElementById('stat-l').value = s.l || 0;
+                document.getElementById('stat-p').value = s.p || 0;
+            } catch(e) {}
             document.getElementById('modal-buttons').innerHTML = `<button id="modal-update" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold italic">GÜNCELLE</button>`;
-            // attach update listener
             try { const upd = document.getElementById('modal-update'); if (upd) { upd.onclick = () => updatePlayerName(); } } catch(e) {}
-            // ensure gender/team toggle handlers and visual sync
             try { attachGenderToggle(); syncGenderUI(); attachTeamToggle(); syncTeamUI(); } catch(e) {}
             document.getElementById('add-player-modal').classList.remove('hidden');
         }
@@ -978,13 +978,18 @@ function renderTeamStats() {
 
             const genderInput = document.querySelector('input[name="player-gender"]:checked');
             const newGender = genderInput ? genderInput.value : 'female';
-
-            // if team selector is visible, read new team value
             const teamInput = document.querySelector('input[name="player-team"]:checked');
             const newTeam = teamInput ? teamInput.value : null;
+            
+            const newStats = {
+                m: parseInt(document.getElementById('stat-m').value) || 0,
+                w: parseInt(document.getElementById('stat-w').value) || 0,
+                l: parseInt(document.getElementById('stat-l').value) || 0,
+                p: parseInt(document.getElementById('stat-p').value) || 0
+            };
 
             const playerRef = doc(db, "players", editingPlayerId);
-            const updateObj = { name: newName, gender: newGender };
+            const updateObj = { name: newName, gender: newGender, stats: newStats };
             if (newTeam) updateObj.team = newTeam;
             await updateDoc(playerRef, updateObj);
 
@@ -1004,13 +1009,12 @@ function renderTeamStats() {
             });
             await batch.commit();
 
-            // Update gidecekler entry if exists
             try {
                 const gRef = doc(db, "gidecekler", editingPlayerId);
                 const mergeObj = { name: newName, gender: newGender };
                 if (newTeam) mergeObj.team = newTeam;
                 await setDoc(gRef, mergeObj, { merge: true });
-            } catch (e) { /* ignore */ }
+            } catch (e) { }
 
             closeModal();
         }
@@ -1097,7 +1101,7 @@ function renderTeamStats() {
             if (!name) return; 
             const genderInput = document.querySelector('input[name="player-gender"]:checked');
             const gender = genderInput ? genderInput.value : 'female';
-            await addDoc(collection(db, "players"), { name: name, team: team, gender });
+            await addDoc(collection(db, "players"), { name, team, gender, stats: {m:0, w:0, l:0, p:0} });
             closeModal(); 
         }
         
@@ -1114,11 +1118,11 @@ function renderTeamStats() {
             document.getElementById('add-player-modal').classList.add('hidden'); 
             editingPlayerId = null; 
             document.getElementById('modal-title').textContent = "YENİ OYUNCU"; 
-            // restore default modal buttons (use IDs so listeners can be attached)
             document.getElementById('modal-buttons').innerHTML = `<button id="modal-add-red" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold italic">KIRMIZIYA EKLE</button><button id="modal-add-blue" class="flex-1 bg-blue-600 py-4 rounded-2xl font-bold italic">MAVİYE EKLE</button>`; 
             document.getElementById('player-name').value = ''; 
             try { document.querySelector('input[name="player-gender"][value="female"]').checked = true; } catch(e) {}
             try { document.getElementById('modal-team-select').classList.add('hidden'); } catch(e) {}
+            try { document.getElementById('modal-stats').classList.add('hidden'); } catch(e) {}
             try { syncGenderUI(); } catch(e) {}
         }
         
