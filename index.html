@@ -977,7 +977,7 @@ function renderTeamStats() {
             let stats;
             if (type === 'daily') {
                 stats = players.map(p => ({ ...p, m: 0, w: 0, l: 0, p: 0 }));
-                const today = new Date().toLocaleDateString('tr-TR');
+                const now = new Date();
                 const getGameTs = (g) => {
                     if (g.timestamp) return Number(g.timestamp);
                     try {
@@ -992,7 +992,11 @@ function renderTeamStats() {
                 const relevantGames = games.filter(g => {
                     const ts = getGameTs(g);
                     if (!ts) return false;
-                    return new Date(ts).toLocaleDateString('tr-TR') === today;
+                    const gameDate = new Date(ts);
+                    const resetDate = new Date(gameDate);
+                    resetDate.setDate(resetDate.getDate() + 1);
+                    resetDate.setHours(20, 0, 0, 0);
+                    return now < resetDate;
                 });
                 relevantGames.forEach(g => {
                     const winners = Array.isArray(g.winnerId) ? g.winnerId : [g.winnerId];
