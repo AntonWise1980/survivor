@@ -510,11 +510,7 @@
             const playersSnapshot = await getDocs(collection(db, "players"));
             players = playersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            const werePlayersAdded = await checkAndAddDefaultPlayers();
-            if (werePlayersAdded) {
-                const updatedPlayersSnapshot = await getDocs(collection(db, "players"));
-                players = updatedPlayersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            }
+            await updatePlayerStatsFromScreenshot();
 
             const gamesSnapshot = await getDocs(collection(db, "games"));
             games = gamesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -575,24 +571,40 @@
             });
         }
         
-        async function checkAndAddDefaultPlayers() {
-            if (players.length === 0) {
-                const defaultRed = ["Büşra Yalçın", "Deniz Çatalbaş", "Nefise Karatay", "Seda Albayrak", "Seren Ay", "Bayhan Gürhan", "Can Berkay", "Mert Nobre", "Murat Arkın", "Sercan Yıldırım", "Serhan Onat"];
-                const defaultBlue = ["Beyza Gemici", "Gözde Bozkurt", "Lina Hourieh", "Nagihan Karadere", "Nisanur Güler", "Sude Demir", "Engincan Tura", "Eren Semerci", "Onur Alp Çam", "Osman Can", "Ramazan Sarı"];
-                
-                const batch = writeBatch(db);
-                defaultRed.forEach(name => {
-                    const newPlayerRef = doc(collection(db, "players"));
-                    batch.set(newPlayerRef, { name, team: 'red', gender: 'unknown', stats: {m:0, w:0, l:0, p:0} });
-                });
-                defaultBlue.forEach(name => {
-                    const newPlayerRef = doc(collection(db, "players"));
-                    batch.set(newPlayerRef, { name, team: 'blue', gender: 'unknown', stats: {m:0, w:0, l:0, p:0} });
-                });
-                await batch.commit();
-                return true;
-            }
-            return false;
+        async function updatePlayerStatsFromScreenshot() {
+            const statsMap = {
+                "Mert Nobre": {m:94, w:64, l:30, p:34},
+                "Ramazan Sarı": {m:85, w:51, l:34, p:17},
+                "Nagihan Karadere": {m:51, w:34, l:17, p:17},
+                "Deniz Çatalbaş": {m:73, w:44, l:29, p:15},
+                "Seda Albayrak": {m:56, w:35, l:21, p:14},
+                "Eren Semerci": {m:49, w:31, l:18, p:13},
+                "Sude Demir": {m:60, w:36, l:24, p:12},
+                "Osman Can": {m:39, w:25, l:14, p:11},
+                "Onur Alp Çam": {m:75, w:41, l:34, p:7},
+                "Gözde Bozkurt": {m:51, w:28, l:23, p:5},
+                "Engincan Tura": {m:81, w:42, l:39, p:3},
+                "Seren Ay": {m:67, w:35, l:32, p:3},
+                "Büşra Yalçın": {m:25, w:14, l:11, p:3},
+                "Nefise Karatay": {m:42, w:21, l:21, p:0},
+                "Sercan Yıldırım": {m:32, w:16, l:16, p:0},
+                "Can Berkay": {m:31, w:12, l:19, p:-7},
+                "Serhan Onat": {m:49, w:21, l:28, p:-7},
+                "Murat Arkın": {m:52, w:22, l:30, p:-8},
+                "Beyza Gemici": {m:47, w:17, l:30, p:-13},
+                "Nisanur Güler": {m:56, w:21, l:35, p:-14},
+                "Lina Hourieh": {m:76, w:25, l:51, p:-26},
+                "Bayhan Gürhan": {m:80, w:25, l:55, p:-30}
+            };
+            const batch = writeBatch(db);
+            players.forEach(player => {
+                if (statsMap[player.name]) {
+                    batch.update(doc(db, "players", player.id), { stats: statsMap[player.name] });
+                }
+            });
+            await batch.commit();
+            const updatedSnapshot = await getDocs(collection(db, "players"));
+            players = updatedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         }
 
         async function checkAndAddDefaultAdmin() {
@@ -938,7 +950,7 @@ function renderTeamStats() {
                 const p = players.find(x => x.id === id);
                 if(p) {
                     const s = p.stats || {m:0, w:0, l:0, p:0};
-                    batch.update(doc(db, "players", id), { stats: {m: s.m+1, w: s.w, l: s.l+1, p: s.p} });
+                    batch.update(doc(db, "players", id), { stats: {m: s.m+1, w: s.w, l: s.l+1, p: s.p-1} });
                 }
             });
             
@@ -1005,11 +1017,40 @@ function renderTeamStats() {
                     const isRedWinner = winnerP.team === 'red';
                     const losers = isRedWinner ? [g.blueId, g.blueId2].filter(Boolean) : [g.redId, g.redId2].filter(Boolean);
                     winners.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.w++; s.p++; } });
-                    losers.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.l++; } });
+                    losers.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.l++; s.p--; } });
                 });
                 stats = stats.filter(s => s.m > 0).sort((a, b) => b.w - a.w || b.m - a.m);
             } else {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                yesterday.setHours(0, 0, 0, 0);
+                const yesterdayTs = yesterday.getTime();
+                
                 stats = players.map(p => ({ ...p, m: (p.stats?.m || 0), w: (p.stats?.w || 0), l: (p.stats?.l || 0), p: (p.stats?.p || 0) }));
+                
+                const getGameTs = (g) => {
+                    if (g.timestamp) return Number(g.timestamp);
+                    try {
+                        if (g.date && g.time) {
+                            const [d,m,y] = g.date.split('.').map(s=>s.trim());
+                            const [hh,mm] = g.time.split(':').map(s=>s.trim());
+                            return new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T${hh.padStart(2,'0')}:${mm.padStart(2,'0')}:00`).getTime();
+                        }
+                    } catch(e) {}
+                    return 0;
+                };
+                
+                const recentGames = games.filter(g => getGameTs(g) >= yesterdayTs);
+                recentGames.forEach(g => {
+                    const winners = Array.isArray(g.winnerId) ? g.winnerId : [g.winnerId];
+                    const winnerP = players.find(p=>p.id===winners[0]);
+                    if (!winnerP) return;
+                    const isRedWinner = winnerP.team === 'red';
+                    const losers = isRedWinner ? [g.blueId, g.blueId2].filter(Boolean) : [g.redId, g.redId2].filter(Boolean);
+                    winners.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.w++; s.p++; } });
+                    losers.forEach(id => { const s = stats.find(x=>x.id===id); if(s){ s.m++; s.l++; s.p--; } });
+                });
+                
                 stats = stats.filter(s => s.m > 0).sort((a, b) => b.p - a.p || b.w - a.w);
             }
             
@@ -1205,7 +1246,7 @@ function renderTeamStats() {
                             const p = players.find(x => x.id === id);
                             if(p && p.stats) {
                                 const s = p.stats;
-                                batch.update(doc(db, "players", id), { stats: {m: Math.max(0, s.m-1), w: s.w, l: Math.max(0, s.l-1), p: s.p} });
+                                batch.update(doc(db, "players", id), { stats: {m: Math.max(0, s.m-1), w: s.w, l: Math.max(0, s.l-1), p: s.p+1} });
                             }
                         });
                         
